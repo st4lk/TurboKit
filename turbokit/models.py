@@ -7,7 +7,6 @@ import motor
 from schematics.models import Model
 from schematics.types import NumberType
 from pymongo.errors import ConnectionFailure
-from settings import MONGO_DB
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -31,6 +30,8 @@ class BaseModel(Model):
 
         obj = yield MyModel.find_one(db, {"i": 3})
     """
+    RECONNECT_TRIES = 5
+    RECONNECT_TIMEOUT = 2  # in seconds
 
     _id = NumberType(number_class=ObjectId, number_type="ObjectId")
 
@@ -276,17 +277,17 @@ class BaseModel(Model):
             else:
                 raise gen.Return(result)
 
-    @staticmethod
-    def reconnect_amount():
-        return xrange(MONGO_DB['reconnect_tries'] + 1)
+    @classmethod
+    def reconnect_amount(cls):
+        return xrange(cls.RECONNECT_TRIES + 1)
 
     @classmethod
     @gen.coroutine
     def check_reconnect_tries_and_wait(cls, reconnect_number, func_name):
-        if reconnect_number >= MONGO_DB['reconnect_tries']:
+        if reconnect_number >= cls.RECONNECT_TRIES:
             raise gen.Return(True)
         else:
-            timeout = MONGO_DB['reconnect_timeout']
+            timeout = cls.RECONNECT_TIMEOUT
             l.warning("ConnectionFailure #{0} in {1}.{2}. Waiting {3} seconds"
                 .format(
                     reconnect_number + 1, cls.__name__, func_name, timeout))
