@@ -8,7 +8,7 @@ from example_app.app import AppODM
 
 app = AppODM()
 reverse_url = app.reverse_url
-db_conn = app.settings['db_connection']
+mongo_client = app.settings['mongo_client']
 db_name = 'odm_test'
 
 
@@ -33,7 +33,7 @@ class BaseTest(AsyncHTTPTestCase):
     def db_clear(self):
         @gen.engine
         def async_op(dname):
-            yield motor.Op(db_conn.drop_database, dname)
+            yield motor.Op(mongo_client.drop_database, dname)
             self.stop()
         for dname in self.DATABASES:
             async_op(dname)

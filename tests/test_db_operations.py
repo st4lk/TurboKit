@@ -10,8 +10,8 @@ class TestDbOperations(BaseTest):
     def test_save(self):
         secret = 'abbcc123'
         m = SimpleModel({"title": "Test model", "secret": secret})
-        db_conn = self._app.settings['db_connection']
-        db = db_conn[db_name]
+        mclient = self._app.settings['mongo_client']
+        db = mclient[db_name]
         yield m.save(db)
         m_from_db = yield SimpleModel.find_one(db, {"title": "Test model"})
         self.assertEqual(m.secret, m_from_db.secret)

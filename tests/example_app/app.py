@@ -14,9 +14,9 @@ class AppODM(tornado.web.Application):
     def __init__(self, *args, **kwargs):
         mongo_host = kwargs.pop('mongo_host', MONGO_DB['host'])
         mongo_port = kwargs.pop('mongo_port', MONGO_DB['port'])
-        db_connection = motor.MotorClient(host=mongo_host, port=mongo_port)
+        mongo_client = motor.MotorClient(host=mongo_host, port=mongo_port)
         super(AppODM, self).__init__(
-            url_patterns, db_connection=db_connection, *args, **dict(settings, **kwargs))
+            url_patterns, mongo_client=mongo_client, *args, **dict(settings, **kwargs))
 
 
 def main():
