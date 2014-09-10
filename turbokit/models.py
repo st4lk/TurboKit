@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import logging
-from datetime import timedelta
-from bson.objectid import ObjectId
-from tornado import gen, ioloop
 import motor
-from schematics.models import Model
-from schematics.types import NumberType
+
+from datetime import timedelta
+from tornado import gen, ioloop
+
 from pymongo.errors import ConnectionFailure
+
+from schematics.models import Model
+from schematics.contrib.mongo import ObjectIdType
+
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -33,7 +36,7 @@ class BaseModel(Model):
     RECONNECT_TRIES = 5
     RECONNECT_TIMEOUT = 2  # in seconds
 
-    _id = NumberType(number_class=ObjectId, number_type="ObjectId")
+    _id = ObjectIdType(serialized_name='id')
 
     def __init__(self, *args, **kwargs):
         self.set_db(kwargs.pop('db', None))
