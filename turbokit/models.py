@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import logging
-from datetime import timedelta
-from bson.objectid import ObjectId
-from tornado import gen, ioloop
 import motor
+from datetime import timedelta
+from tornado import gen, ioloop
 from schematics.models import Model
-from schematics.types import NumberType
 from pymongo.errors import ConnectionFailure
+from .types import ObjectIdType, ObjectId
+
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -33,7 +33,7 @@ class BaseModel(Model):
     RECONNECT_TRIES = 5
     RECONNECT_TIMEOUT = 2  # in seconds
 
-    _id = NumberType(number_class=ObjectId, number_type="ObjectId")
+    _id = ObjectIdType()
 
     def __init__(self, *args, **kwargs):
         self.set_db(kwargs.pop('db', None))
@@ -126,7 +126,7 @@ class BaseModel(Model):
         yield self.remove_entries(db, {"_id": _id}, collection)
 
     @gen.coroutine
-    def save(self, db=None, collection=None, ser=None):
+    def save(self, db=None, cast_id=True, collection=None, ser=None):
         """
         If object has _id, then object will be created or fully rewritten.
         If not, object will be inserted and _id will be assigned.
@@ -136,7 +136,7 @@ class BaseModel(Model):
         """
         db = db or self.db
         c = self.check_collection(collection)
-        data = self.get_data_for_save(ser)
+        data = self.get_data_for_save(ser, cast_id)
         result = None
         for i in self.reconnect_amount():
             try:
@@ -178,10 +178,12 @@ class BaseModel(Model):
                     self._id = result
                 return
 
+    @classmethod
     @gen.coroutine
-    def update(self, db=None, query=None, collection=None, update=None, ser=None,
+    def update(cls, db, query, ser, collection=None, update=None,
             upsert=False, multi=False):
         """
+        TODO: update description and complete it as classmethod
         Updates the object. If object has _id, then try to update the object.
         If object with given _id is not found in database, or object doesn't
         have _id field, then save it and assign generated _id.
@@ -199,24 +201,16 @@ class BaseModel(Model):
             obj.last_name = "Bar"
             yield obj.update(self.db)
         """
-        db = db or self.db
         # TODO: refactor, update and ser arguments are very similar, left only one
-        c = self.check_collection(collection)
-        if update is None:
-            data = self.get_data_for_save(ser)
-        else:
-            data = update
-        if not query:
-            _id = self.pk or data.pop("_id")
-            query = {"_id": _id}
-        if update is None:
-            data = {"$set": data}
-        for i in self.reconnect_amount():
+        c = cls.check_collection(collection)
+        data = cls.get_data_for_save(ser)
+        data = {"$set": data}
+        for i in cls.reconnect_amount():
             try:
                 result = yield motor.Op(db[c].update,
                     query, data, upsert=upsert, multi=multi)
             except ConnectionFailure as e:
-                exceed = yield self.check_reconnect_tries_and_wait(i,
+                exceed = yield cls.check_reconnect_tries_and_wait(i,
                     'update')
                 if exceed:
                     raise e
@@ -225,18 +219,20 @@ class BaseModel(Model):
                 raise gen.Return(result)
 
     @classmethod
-    def get_cursor(cls, db, query, collection=None, fields={}):
+    def get_cursor(cls, db, query, collection=None, fields=None):
         c = cls.check_collection(collection)
         query = cls.process_query(query)
         return db[c].find(query, fields) if fields else db[c].find(query)
 
     @classmethod
     @gen.coroutine
-    def find(cls, cursor, model=True, list_len=None):
+    def find(cls, db, query, fields=None, collection=None, model=True, list_len=None):
         """
         Returns a list of found documents.
 
-        :arg cursor: motor cursor for find
+        :arg db: database, returned from MotorClient
+        :arg query: dict of fields to be searched by
+        :arg fields: return only this fields, instead of all
         :arg model: if True, then construct model instance for each document.
             Otherwise, just leave them as list of dicts.
         :arg list_len: list of documents to be returned.
@@ -245,6 +241,7 @@ class BaseModel(Model):
             cursor = ExampleModel.get_cursor(self.db, {"first_name": "Hello"})
             objects = yield ExampleModel.find(cursor)
         """
+        cursor = cls.get_cursor(db, query, collection=collection, fields=fields)
         result = None
         list_len = list_len or cls.find_list_len() or MAX_FIND_LIST_LEN
         for i in cls.reconnect_amount():
@@ -260,6 +257,20 @@ class BaseModel(Model):
                     for i in xrange(len(result)):
                         result[i] = cls.make_model(
                             result[i], "find", field_names_set)
+                raise gen.Return(result)
+
+    @classmethod
+    @gen.coroutine
+    def count(cls, db, query):
+        cursor = cls.get_cursor(db, query)
+        for i in cls.reconnect_amount():
+            try:
+                result = yield motor.Op(cursor.count)
+            except ConnectionFailure as e:
+                exceed = yield cls.check_reconnect_tries_and_wait(i, 'count')
+                if exceed:
+                    raise e
+            else:
                 raise gen.Return(result)
 
     @classmethod
@@ -294,10 +305,18 @@ class BaseModel(Model):
             io_loop = ioloop.IOLoop.instance()
             yield gen.Task(io_loop.add_timeout, timedelta(seconds=timeout))
 
-    def get_data_for_save(self, ser):
+    def get_data_for_save(self, ser=None, cast_id=True):
+        """
+        Prepare data to be send to mongo
+        :arg ser: if this field is not empty, data will be taken from it
+        :arg cast_id: if True, cast value to ObjectId _id value
+        """
         data = ser or self.to_primitive()
-        if '_id' in data and data['_id'] is None:
-            del data['_id']
+        if '_id' in data:
+            if data['_id'] is None:
+                del data['_id']
+            elif cast_id and not isinstance(data['_id'], ObjectId):
+                data['_id'] = ObjectId(data['_id'])
         return data
 
     @classmethod
