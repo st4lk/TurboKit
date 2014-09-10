@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from turbokit.models import BaseModel
-from schematics.types import StringType
+from schematics import types
 
 
 class SimpleModel(BaseModel):
     MONGO_COLLECTION = 'simple'
 
-    title = StringType(default='No name')
-    secret = StringType()
+    title = types.StringType(default='No name')
+    secret = types.StringType()

@@ -6,18 +6,11 @@ from tornado import gen
 from example_app.app import AppODM
 
 
-app = AppODM()
-reverse_url = app.reverse_url
-mongo_client = app.settings['mongo_client']
-db_name = 'odm_test'
-
-
 class BaseTest(AsyncHTTPTestCase):
-    DATABASES = [db_name, ]
+    DATABASES = ['odm_test', ]
 
     def setUp(self):
         super(BaseTest, self).setUp()
-        self.reverse_url = reverse_url
         self.db_clear()
 
     def tearDown(self):
@@ -25,15 +18,23 @@ class BaseTest(AsyncHTTPTestCase):
         self.db_clear()
 
     def get_app(self):
-        return app
+        return AppODM()
 
     def get_new_ioloop(self):
         return IOLoop.instance()
 
+    @property
+    def mongo_client(self):
+        return self._app.settings['mongo_client']
+
+    @property
+    def default_db(self):
+        return self.mongo_client[self.DATABASES[0]]
+
     def db_clear(self):
         @gen.engine
         def async_op(dname):
-            yield motor.Op(mongo_client.drop_database, dname)
+            yield motor.Op(self.mongo_client.drop_database, dname)
             self.stop()
         for dname in self.DATABASES:
             async_op(dname)
