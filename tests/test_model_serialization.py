@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import collections
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
@@ -26,6 +27,8 @@ class BaseSerializationTest(BaseTest):
             value = {}
             for k in ['key1', 'key2']:
                 value[k] = self._mock_field_value(field_object.field)
+        elif isinstance(field_object, compound.ModelType):
+            value = self._get_mocked_data(field_object.model_class())
         else:
             value = field_object._mock()
             if isinstance(field_object, types.GeoPointType):
@@ -37,8 +40,17 @@ class BaseSerializationTest(BaseTest):
             value = self._mock_field_value(fobj)
             setattr(obj, fname, value)
         json_data = obj.to_primitive()
-        del json_data['id']
+        json_data.pop('id', None)
         return json_data
+
+    def _update_dict_recursive(self, d, u):
+        for k, v in u.iteritems():
+            if isinstance(v, collections.Mapping):
+                r = self._update_dict_recursive(d.get(k, {}), v)
+                d[k] = r
+            else:
+                d[k] = u[k]
+        return d
 
     @gen.coroutine
     def _get_json_from_db_and_check_count(self, obj, count=1):
@@ -69,6 +81,7 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
         self.json_data['type_dict'] = {'k3': 8, 'k4': 9}
         self.json_data['type_list_of_dict'] = [{'k1': 'str1'}, {'k2': 'str2'}]
         self.json_data['type_dict_of_list'] = {'k6': [1, 2], 'k7': [88, ]}
+        self.json_data['type_model']['type_string'] = 'new_model_string'
         # create model from that json and save it to db
         m_updated = self.model(self.json_data)
         yield m_updated.save(self.db)
@@ -96,12 +109,14 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
             'type_dict': {'k3': 8, 'k4': 9},
             'type_list_of_dict': [{'k1': 'str1'}, {'k2': 'str2'}],
             'type_dict_of_list': {'k6': [1, 2], 'k7': [88, ]},
+            'type_model': {'type_string': "new_model_string"}
         }
         yield m.update(self.db, updated_json)
         # check, that model from db corresponds to updated_json data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         expected_json = dict(self.json_data)
         expected_json.update(updated_json)
+
         self.assertEqual(json_from_db, expected_json)
         # update only some fields from model class
         updated_json_for_cls = {
@@ -109,6 +124,7 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
             "type_url": "http://ya.ru",
             'type_list_of_dict': [{'k8': 'str8'}, {'k9': 'str9'}],
             'type_dict_of_list': {'k89': [8, 9], 'k567': [0, 8]},
+            'type_model': {'type_int': 88}
         }
         yield m.__class__.update(self.db, {"_id": m._id}, updated_json_for_cls)
         # check, that model from db corresponds to updated_json_for_cls data

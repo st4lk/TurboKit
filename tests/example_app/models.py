@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from turbokit.models import BaseModel
+from turbokit.models import BaseModel, SchematicsModel
 from schematics import types
 from schematics.types import compound
 
@@ -9,6 +9,14 @@ class SimpleModel(BaseModel):
 
     title = types.StringType(default='No name')
     secret = types.StringType()
+
+
+class NestedModel(SchematicsModel):
+    type_string = types.StringType()
+    type_int = types.IntType()
+
+    class Options:
+        serialize_when_none = False
 
 
 class SchematicsFieldsModel(BaseModel):
@@ -40,3 +48,7 @@ class SchematicsFieldsModel(BaseModel):
     type_dict = compound.DictType(types.IntType)  # dict values can be only integers
     type_list_of_dict = compound.ListType(compound.DictType, compound_field=types.StringType)
     type_dict_of_list = compound.DictType(compound.ListType, compound_field=types.IntType)
+    type_model = compound.ModelType(NestedModel)
+
+    class Options:
+        serialize_when_none = False

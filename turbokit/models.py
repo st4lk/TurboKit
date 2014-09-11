@@ -4,7 +4,7 @@ import motor
 from bson.objectid import ObjectId
 from datetime import timedelta
 from tornado import gen, ioloop
-from schematics.models import Model
+from schematics.models import Model as SchematicsModel
 from schematics.contrib.mongo import ObjectIdType
 from pymongo.errors import ConnectionFailure
 from .utils import methodize
@@ -13,7 +13,7 @@ l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
 
 
-class BaseModel(Model):
+class BaseModel(SchematicsModel):
     """
     Provides generic methods to work with model.
     Why use `MyModel.find_one` instead of `db.collection.find_one` ?
@@ -302,6 +302,15 @@ class BaseModel(Model):
             io_loop = ioloop.IOLoop.instance()
             yield gen.Task(io_loop.add_timeout, timedelta(seconds=timeout))
 
+    @staticmethod
+    def _process_id_key(data, cast_id=True):
+        if '_id' in data:
+            if data['_id'] is None:
+                del data['_id']
+            elif cast_id and not isinstance(data['_id'], ObjectId):
+                data['_id'] = ObjectId(data['_id'])
+        return data
+
     def get_data_for_save(self, ser=None, cast_id=True):
         """
         Prepare data to be send to mongo
@@ -309,16 +318,59 @@ class BaseModel(Model):
         :arg cast_id: if True, cast value to ObjectId _id value
         """
         data = ser or self.to_mongo()
-        return self.get_data_for_update(data, cast_id)
+        return self._process_id_key(data, cast_id)
 
-    @staticmethod
-    def get_data_for_update(data, cast_id=True):
-        if '_id' in data:
-            if data['_id'] is None:
-                del data['_id']
-            elif cast_id and not isinstance(data['_id'], ObjectId):
-                data['_id'] = ObjectId(data['_id'])
-        return data
+    @classmethod
+    def _flatten_data(cls, data, nested=None, new_data=None):
+        """
+        Transforms data with nested dict:
+        {
+            'k1': 'v1',
+            'k2': {
+                'k3': 'v3',
+                'k4': 'v4',
+            }
+            'k5': [
+                {'k6': 'v6'},
+                {'k7': 'v7'},
+            ]
+        }
+        Into flatten data (TODO: flatten dict in list also, can be issues):
+        {
+            'k1': 'v1',
+            'k2.k3': 'v3',
+            'k2.k4': 'v4',
+            'k5': [
+                {'k6': 'v6'},
+                {'k7': 'v7'},
+            ]
+        }
+        """
+        if new_data is None:
+            new_data = {}
+        if nested:
+            nested_data = nested[0]
+            root_key = nested[1]
+            for k, v in nested_data.iteritems():
+                nested_key = ".".join((root_key, k))
+                if isinstance(v, dict):
+                    new_data.update(cls._flatten_data(data, nested=[v, nested_key]))
+                else:
+                    new_data[nested_key] = v
+        else:
+            for k, v in data.iteritems():
+                if isinstance(v, dict):
+                    new_data.update(
+                        cls._flatten_data(data, nested=[v, k], new_data=new_data))
+                else:
+                    new_data[k] = v
+        return new_data
+
+    @classmethod
+    def get_data_for_update(cls, data, cast_id=True, flatten_data=False):
+        if flatten_data:
+            data = cls._flatten_data(data)
+        return cls._process_id_key(data, cast_id)
 
     @classmethod
     def make_model(cls, data, method_name, field_names_set=None, db=None):
