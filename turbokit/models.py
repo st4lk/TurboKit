@@ -7,6 +7,7 @@ from tornado import gen, ioloop
 from schematics.models import Model
 from schematics.contrib.mongo import ObjectIdType
 from pymongo.errors import ConnectionFailure
+from .utils import methodize
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -37,6 +38,7 @@ class BaseModel(Model):
 
     def __init__(self, *args, **kwargs):
         self.set_db(kwargs.pop('db', None))
+        self.update = methodize(self.__class__._update_instance, self)
         super(BaseModel, self).__init__(*args, **kwargs)
 
     @property
@@ -183,27 +185,12 @@ class BaseModel(Model):
     def update(cls, db, query, ser, collection=None, update=None,
             upsert=False, multi=False):
         """
-        TODO: update description and complete it as classmethod
-        Updates the object. If object has _id, then try to update the object.
-        If object with given _id is not found in database, or object doesn't
-        have _id field, then save it and assign generated _id.
-        Difference from save:
-            Suppose such object in database:
-                {"_id": 1, "foo": "egg1", "bar": "egg2"}
-            We want to save following data:
-                {"_id": 1, "foo": "egg3"}
-            If we'll run save, then in database will be following data:
-                {"_id": 1, "foo": "egg3"} # "bar": "egg2" is removed
-            But if we'll run update, then existing fields will be kept:
-                {"_id": 1, "foo": "egg3", "bar": "egg2"}
-        Example:
-            obj = yield ExampleModel.find_one(self.db, {"first_name": "Foo"})
-            obj.last_name = "Bar"
-            yield obj.update(self.db)
+        Update only given fields for object, found by query.
+        Other args are the same, as in pymongo.update:
+        http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update
         """
-        # TODO: refactor, update and ser arguments are very similar, left only one
         c = cls.check_collection(collection)
-        data = cls.get_data_for_save(ser)
+        data = cls.get_data_for_update(ser)
         data = {"$set": data}
         for i in cls.reconnect_amount():
             try:
@@ -217,6 +204,16 @@ class BaseModel(Model):
             else:
                 l.debug("Update result: {0}".format(result))
                 raise gen.Return(result)
+
+    @gen.coroutine
+    def _update_instance(self, db, ser, **kwargs):
+        """
+        This method will be invoked, when `.update` is called from model instance.
+        This is a helper for cls.update, but it will pass query {"_id": self.id}
+        automatically.
+        """
+        result = yield self.__class__.update(db, {"_id": self._id}, ser, **kwargs)
+        raise gen.Return(result)
 
     @classmethod
     def get_cursor(cls, db, query, collection=None, fields=None):
@@ -312,6 +309,10 @@ class BaseModel(Model):
         :arg cast_id: if True, cast value to ObjectId _id value
         """
         data = ser or self.to_mongo()
+        return self.get_data_for_update(data, cast_id)
+
+    @staticmethod
+    def get_data_for_update(data, cast_id=True):
         if '_id' in data:
             if data['_id'] is None:
                 del data['_id']
