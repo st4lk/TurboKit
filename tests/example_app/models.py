@@ -49,6 +49,7 @@ class SchematicsFieldsModel(BaseModel):
     type_list_of_dict = compound.ListType(compound.DictType, compound_field=types.StringType)
     type_dict_of_list = compound.DictType(compound.ListType, compound_field=types.IntType)
     type_model = compound.ModelType(NestedModel)
+    type_list_model = compound.ListType(compound.ModelType(NestedModel))
 
     class Options:
         serialize_when_none = False

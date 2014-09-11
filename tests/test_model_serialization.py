@@ -82,6 +82,10 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
         self.json_data['type_list_of_dict'] = [{'k1': 'str1'}, {'k2': 'str2'}]
         self.json_data['type_dict_of_list'] = {'k6': [1, 2], 'k7': [88, ]}
         self.json_data['type_model']['type_string'] = 'new_model_string'
+        self.json_data['type_list_model'] = [
+            {'type_string': 'ss1', 'type_int': 1},
+            {'type_string': 'ss2', 'type_int': 2},
+        ]
         # create model from that json and save it to db
         m_updated = self.model(self.json_data)
         yield m_updated.save(self.db)
@@ -109,7 +113,11 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
             'type_dict': {'k3': 8, 'k4': 9},
             'type_list_of_dict': [{'k1': 'str1'}, {'k2': 'str2'}],
             'type_dict_of_list': {'k6': [1, 2], 'k7': [88, ]},
-            'type_model': {'type_string': "new_model_string"}
+            'type_model': {'type_string': "new_model_string"},
+            'type_list_model': [
+                {'type_string': 'ss1', 'type_int': 1},
+                {'type_string': 'ss2', 'type_int': 2},
+            ]
         }
         yield m.update(self.db, updated_json)
         # check, that model from db corresponds to updated_json data
@@ -124,7 +132,10 @@ class TestSerializationCompoundOperations(BaseSerializationTest):
             "type_url": "http://ya.ru",
             'type_list_of_dict': [{'k8': 'str8'}, {'k9': 'str9'}],
             'type_dict_of_list': {'k89': [8, 9], 'k567': [0, 8]},
-            'type_model': {'type_int': 88}
+            'type_model': {'type_int': 88},
+            'type_list_model': [
+                {'type_string': 'ss1', 'type_int': 1},
+            ]
         }
         yield m.__class__.update(self.db, {"_id": m._id}, updated_json_for_cls)
         # check, that model from db corresponds to updated_json_for_cls data
