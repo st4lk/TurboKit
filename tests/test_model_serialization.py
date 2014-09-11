@@ -2,23 +2,56 @@
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
-from example_app.models import SchematicsBaseFieldsModel
+from schematics import types
+from schematics.types import compound
+from example_app.models import SchematicsFieldsModel
 
 
-class TestSerializationOperations(BaseTest):
+class BaseSerializationTest(BaseTest):
+    MODEL_CLASS = None
 
     def setUp(self):
-        super(TestSerializationOperations, self).setUp()
+        super(BaseSerializationTest, self).setUp()
         self.db = self.default_db
-        self.model = SchematicsBaseFieldsModel
+        self.model = self.MODEL_CLASS
         m_temp = self.model()
-        for fname, fobj in filter(lambda n: n[0] != "_id", m_temp._fields.iteritems()):
-            value = fobj._mock()
-            if 'type_geopoint' in fname:
+        self.json_data = self._get_mocked_data(m_temp)
+
+    def _mock_field_value(self, field_object):
+        if isinstance(field_object, compound.ListType):
+            value = []
+            for i in range(3):
+                value.append(self._mock_field_value(field_object.field))
+        elif isinstance(field_object, compound.DictType):
+            value = {}
+            for k in ['key1', 'key2']:
+                value[k] = self._mock_field_value(field_object.field)
+        else:
+            value = field_object._mock()
+            if isinstance(field_object, types.GeoPointType):
                 value = list(value)  # convert tuple to list, as list != tuple
-            setattr(m_temp, fname, value)
-        self.json_data = m_temp.to_primitive()
-        del self.json_data['id']
+        return value
+
+    def _get_mocked_data(self, obj):
+        for fname, fobj in filter(lambda n: n[0] != "_id", obj._fields.iteritems()):
+            value = self._mock_field_value(fobj)
+            setattr(obj, fname, value)
+        json_data = obj.to_primitive()
+        del json_data['id']
+        return json_data
+
+    @gen.coroutine
+    def _get_json_from_db_and_check_count(self, obj, count=1):
+        find_result = yield obj.find(self.db, {"_id": obj._id})
+        self.assertEqual(len(find_result), count)
+        m_from_db = find_result[0]
+        json_from_db = m_from_db.to_primitive()
+        del json_from_db['id']  # ignore id field
+        raise gen.Return(json_from_db)
+
+
+class TestSerializationCompoundOperations(BaseSerializationTest):
+    MODEL_CLASS = SchematicsFieldsModel
 
     @gen_test
     def test_serialize_save(self):
@@ -30,8 +63,12 @@ class TestSerializationOperations(BaseTest):
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         self.assertEqual(self.json_data, json_from_db)
         # update some field in json
-        self.json_data['type_string'] = 'new_value'
         self.json_data["id"] = str(m._id)
+        self.json_data['type_string'] = 'new_value'
+        self.json_data['type_list'] = ['str1', 'str2']
+        self.json_data['type_dict'] = {'k3': 8, 'k4': 9}
+        self.json_data['type_list_of_dict'] = [{'k1': 'str1'}, {'k2': 'str2'}]
+        self.json_data['type_dict_of_list'] = {'k6': [1, 2], 'k7': [88, ]}
         # create model from that json and save it to db
         m_updated = self.model(self.json_data)
         yield m_updated.save(self.db)
@@ -55,6 +92,10 @@ class TestSerializationOperations(BaseTest):
             'type_email': 'updated@email.com',
             'type_long': 12344555,
             'type_datetime': '2014-09-11T12:44:30.210000',
+            'type_list': ['str1', 'str2'],
+            'type_dict': {'k3': 8, 'k4': 9},
+            'type_list_of_dict': [{'k1': 'str1'}, {'k2': 'str2'}],
+            'type_dict_of_list': {'k6': [1, 2], 'k7': [88, ]},
         }
         yield m.update(self.db, updated_json)
         # check, that model from db corresponds to updated_json data
@@ -65,7 +106,9 @@ class TestSerializationOperations(BaseTest):
         # update only some fields from model class
         updated_json_for_cls = {
             'type_string': 'updated_string_class',
-            "type_url": "http://ya.ru"
+            "type_url": "http://ya.ru",
+            'type_list_of_dict': [{'k8': 'str8'}, {'k9': 'str9'}],
+            'type_dict_of_list': {'k89': [8, 9], 'k567': [0, 8]},
         }
         yield m.__class__.update(self.db, {"_id": m._id}, updated_json_for_cls)
         # check, that model from db corresponds to updated_json_for_cls data
@@ -73,12 +116,3 @@ class TestSerializationOperations(BaseTest):
         expected_cls_json = dict(expected_json)
         expected_cls_json.update(updated_json_for_cls)
         self.assertEqual(json_from_db, expected_cls_json)
-
-    @gen.coroutine
-    def _get_json_from_db_and_check_count(self, obj, count=1):
-        find_result = yield obj.find(self.db, {"_id": obj._id})
-        self.assertEqual(len(find_result), count)
-        m_from_db = find_result[0]
-        json_from_db = m_from_db.to_primitive()
-        del json_from_db['id']  # ignore id field
-        raise gen.Return(json_from_db)

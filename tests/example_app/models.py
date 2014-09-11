@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from turbokit.models import BaseModel
 from schematics import types
+from schematics.types import compound
 
 
 class SimpleModel(BaseModel):
@@ -10,9 +11,12 @@ class SimpleModel(BaseModel):
     secret = types.StringType()
 
 
-class SchematicsBaseFieldsModel(BaseModel):
-    MONGO_COLLECTION = 'basetypes'
+class SchematicsFieldsModel(BaseModel):
+    MONGO_COLLECTION = 'st'
 
+    # base fields
+    type_string = types.StringType()
+    type_int = types.IntType()
     type_string = types.StringType()
     type_uuid = types.UUIDType()
     type_IPv4 = types.IPv4Type()
@@ -30,3 +34,9 @@ class SchematicsBaseFieldsModel(BaseModel):
     type_datetime = types.DateTimeType()
     type_geopoint = types.GeoPointType()
     # type_multilingualstring = types.MultilingualStringType(default_locale='localized_value')
+
+    # compound fields
+    type_list = compound.ListType(types.StringType)
+    type_dict = compound.DictType(types.IntType)  # dict values can be only integers
+    type_list_of_dict = compound.ListType(compound.DictType, compound_field=types.StringType)
+    type_dict_of_list = compound.DictType(compound.ListType, compound_field=types.IntType)
