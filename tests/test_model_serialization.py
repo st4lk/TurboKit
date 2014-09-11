@@ -6,6 +6,7 @@ from tornado import gen
 from schematics import types
 from schematics.types import compound
 from example_app.models import SchematicsFieldsModel
+from turbokit.customtypes import ModelReferenceType
 
 
 class BaseSerializationTest(BaseTest):

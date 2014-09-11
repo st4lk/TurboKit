@@ -8,6 +8,7 @@ from schematics.models import Model as SchematicsModel
 from schematics.contrib.mongo import ObjectIdType
 from pymongo.errors import ConnectionFailure
 from .utils import methodize
+from .transforms import to_primitive
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -124,8 +125,7 @@ class BaseModel(SchematicsModel):
             obj = yield ExampleModel.find_one(self.db, {"last_name": "Sara"})
             yield obj.remove(self.db)
         """
-        _id = self.to_primitive()['id']
-        yield self.remove_entries(db, {"_id": _id}, collection)
+        yield self.remove_entries(db, {"_id": self._id}, collection)
 
     @gen.coroutine
     def save(self, db=None, cast_id=True, collection=None, ser=None):
@@ -397,3 +397,19 @@ class BaseModel(SchematicsModel):
         if 'id' in data:
             data['_id'] = data.pop('id')
         return data
+
+    def to_primitive(self, role=None, context=None, expand_related=False):
+        """
+        Accepts additional parameter expand_related.
+        For base documentation look SchematicsModel.to_primitive
+        """
+        return to_primitive(self.__class__, self, role=role, context=context,
+            expand_related=expand_related)
+
+    def serialize(self, role=None, context=None, expand_related=False):
+        """
+        Accepts additional parameter expand_related.
+        For base documentation look SchematicsModel.serialize
+        """
+        return self.to_primitive(role=role, context=context,
+            expand_related=expand_related)

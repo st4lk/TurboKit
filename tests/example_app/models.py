@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from turbokit.models import BaseModel, SchematicsModel
+from turbokit.customtypes import ModelReferenceType
 from schematics import types
 from schematics.types import compound
 
@@ -50,6 +51,9 @@ class SchematicsFieldsModel(BaseModel):
     type_dict_of_list = compound.DictType(compound.ListType, compound_field=types.IntType)
     type_model = compound.ModelType(NestedModel)
     type_list_model = compound.ListType(compound.ModelType(NestedModel))
+
+    # reference fields
+    type_ref = ModelReferenceType(SimpleModel)
 
     class Options:
         serialize_when_none = False
