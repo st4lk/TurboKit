@@ -122,7 +122,7 @@ class BaseModel(Model):
             obj = yield ExampleModel.find_one(self.db, {"last_name": "Sara"})
             yield obj.remove(self.db)
         """
-        _id = self.to_primitive()['_id']
+        _id = self.to_primitive()['id']
         yield self.remove_entries(db, {"_id": _id}, collection)
 
     @gen.coroutine
@@ -311,7 +311,7 @@ class BaseModel(Model):
         :arg ser: if this field is not empty, data will be taken from it
         :arg cast_id: if True, cast value to ObjectId _id value
         """
-        data = ser or self.to_primitive()
+        data = ser or self.to_mongo()
         if '_id' in data:
             if data['_id'] is None:
                 del data['_id']
@@ -338,3 +338,9 @@ class BaseModel(Model):
             for new_key in new_keys:
                 del data[new_key]
         return cls(raw_data=data, db=db)
+
+    def to_mongo(self):
+        data = self.to_primitive()
+        if 'id' in data:
+            data['_id'] = data.pop('id')
+        return data

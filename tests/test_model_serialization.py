@@ -19,7 +19,7 @@ class TestSerializationOperations(BaseTest):
                 value = list(value)  # convert tuple to list, as list != tuple
             setattr(m_temp, fname, value)
         self.json_data = m_temp.to_primitive()
-        del self.json_data['_id']
+        del self.json_data['id']
 
     @gen_test
     def test_serialize_save(self):
@@ -32,11 +32,11 @@ class TestSerializationOperations(BaseTest):
         self.assertEqual(len(find_result), 1)
         m_from_db = find_result[0]
         json_from_db = m_from_db.to_primitive()
-        del json_from_db['_id']  # ignore _id field
+        del json_from_db['id']  # ignore _id field
         self.assertEqual(self.json_data, json_from_db)
         # update some field in json
         self.json_data['type_string'] = 'new_value'
-        self.json_data["_id"] = str(m._id)
+        self.json_data["id"] = str(m._id)
         # create model from that json and save it to db
         m_updated = self.model(self.json_data)
         yield m_updated.save(self.db)
