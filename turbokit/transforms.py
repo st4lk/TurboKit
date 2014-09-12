@@ -11,8 +11,6 @@ def to_primitive(cls, instance_or_dict, role=None, raise_error_on_role=True,
     output, instead of just id.
     For base documentation of this method, look schematics.transforms.to_primitive
     """
-    # field_converter = lambda field, value: field.to_primitive(value,
-                                                              # context=context)
     def field_converter(field, value):
         if expand_related and isinstance(field, ModelReferenceType):
             return field.to_primitive(value, context=context, expand_related=expand_related)
@@ -20,4 +18,21 @@ def to_primitive(cls, instance_or_dict, role=None, raise_error_on_role=True,
 
     data = export_loop(cls, instance_or_dict, field_converter,
                        role=role, raise_error_on_role=raise_error_on_role)
+    return data
+
+
+def to_mongo(cls, instance_or_dict, role=None, raise_error_on_role=True,
+             context=None):
+    """
+    Prepare data to be send to mongodb
+    """
+    def field_converter(field, value):
+        if hasattr(field, 'to_mongo'):
+            return field.to_mongo(value, context=context)
+        return field.to_primitive(value, context=context)
+
+    data = export_loop(cls, instance_or_dict, field_converter,
+                       role=role, raise_error_on_role=raise_error_on_role)
+    if 'id' in data:
+        data['_id'] = data.pop('id')
     return data

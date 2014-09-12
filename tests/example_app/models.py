@@ -53,7 +53,7 @@ class SchematicsFieldsModel(BaseModel):
     type_list_model = compound.ListType(compound.ModelType(NestedModel))
 
     # reference fields
-    type_ref = ModelReferenceType(SimpleModel)
+    type_ref_simplemodel = ModelReferenceType(SimpleModel)
 
     class Options:
         serialize_when_none = False

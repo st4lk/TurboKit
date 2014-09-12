@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-from schematics.contrib.mongo import ObjectIdType
+from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
+from bson.objectid import ObjectId
+
+
+class ObjectIdType(SchematicsObjectIdType):
+    def to_mongo(self, value, context=None):
+        if not isinstance(value, ObjectId):
+            value = ObjectId(value)
+        return value
 
 
 class ModelReferenceType(ObjectIdType):

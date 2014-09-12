@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
 import motor
-from bson.objectid import ObjectId
 from datetime import timedelta
 from tornado import gen, ioloop
 from schematics.models import Model as SchematicsModel
-from schematics.contrib.mongo import ObjectIdType
 from pymongo.errors import ConnectionFailure
 from .utils import methodize
-from .transforms import to_primitive
+from .transforms import to_primitive, to_mongo
+from .customtypes import ObjectIdType
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -128,7 +127,7 @@ class BaseModel(SchematicsModel):
         yield self.remove_entries(db, {"_id": self._id}, collection)
 
     @gen.coroutine
-    def save(self, db=None, cast_id=True, collection=None, ser=None):
+    def save(self, db=None, collection=None, ser=None):
         """
         If object has _id, then object will be created or fully rewritten.
         If not, object will be inserted and _id will be assigned.
@@ -138,7 +137,7 @@ class BaseModel(SchematicsModel):
         """
         db = db or self.db
         c = self.check_collection(collection)
-        data = self.get_data_for_save(ser, cast_id)
+        data = self.get_data_for_save(ser)
         result = None
         for i in self.reconnect_amount():
             try:
@@ -302,23 +301,13 @@ class BaseModel(SchematicsModel):
             io_loop = ioloop.IOLoop.instance()
             yield gen.Task(io_loop.add_timeout, timedelta(seconds=timeout))
 
-    @staticmethod
-    def _process_id_key(data, cast_id=True):
-        if '_id' in data:
-            if data['_id'] is None:
-                del data['_id']
-            elif cast_id and not isinstance(data['_id'], ObjectId):
-                data['_id'] = ObjectId(data['_id'])
-        return data
-
-    def get_data_for_save(self, ser=None, cast_id=True):
+    def get_data_for_save(self, ser=None):
         """
         Prepare data to be send to mongo
         :arg ser: if this field is not empty, data will be taken from it
-        :arg cast_id: if True, cast value to ObjectId _id value
         """
         data = ser or self.to_mongo()
-        return self._process_id_key(data, cast_id)
+        return data
 
     @classmethod
     def _flatten_data(cls, data, nested=None, new_data=None):
@@ -367,10 +356,10 @@ class BaseModel(SchematicsModel):
         return new_data
 
     @classmethod
-    def get_data_for_update(cls, data, cast_id=True, flatten_data=False):
+    def get_data_for_update(cls, data, flatten_data=False):
         if flatten_data:
             data = cls._flatten_data(data)
-        return cls._process_id_key(data, cast_id)
+        return data
 
     @classmethod
     def make_model(cls, data, method_name, field_names_set=None, db=None):
@@ -392,11 +381,8 @@ class BaseModel(SchematicsModel):
                 del data[new_key]
         return cls(raw_data=data, db=db)
 
-    def to_mongo(self):
-        data = self.to_primitive()
-        if 'id' in data:
-            data['_id'] = data.pop('id')
-        return data
+    def to_mongo(self, role=None, context=None, expand_related=False):
+        return to_mongo(self.__class__, self, role=role, context=context)
 
     def to_primitive(self, role=None, context=None, expand_related=False):
         """
