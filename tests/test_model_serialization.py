@@ -6,7 +6,6 @@ from tornado import gen
 from schematics import types
 from schematics.types import compound
 from example_app.models import SchematicsFieldsModel, SimpleModel
-from turbokit.customtypes import ModelReferenceType
 
 
 class BaseSerializationTest(BaseTest):
@@ -156,32 +155,10 @@ class TestSerializationModelReference(BaseSerializationTest):
         sm.validate()
         yield sm.save(self.db)
         m = self.model(self.json_data)
-        m.type_ref_simplemodel = sm._id
+        m.type_ref_simplemodel = sm
         m.validate()
         yield m.save(self.db)
         # check, that model from db corresponds to json data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         self.json_data['type_ref_simplemodel'] = str(sm._id)
         self.assertEqual(self.json_data, json_from_db)
-        # # update some field in json
-        # self.json_data["id"] = str(m._id)
-        # self.json_data['type_string'] = 'new_value'
-        # self.json_data['type_list'] = ['str1', 'str2']
-        # self.json_data['type_dict'] = {'k3': 8, 'k4': 9}
-        # self.json_data['type_list_of_dict'] = [{'k1': 'str1'}, {'k2': 'str2'}]
-        # self.json_data['type_dict_of_list'] = {'k6': [1, 2], 'k7': [88, ]}
-        # self.json_data['type_model']['type_string'] = 'new_model_string'
-        # self.json_data['type_list_model'] = [
-        #     {'type_string': 'ss1', 'type_int': 1},
-        #     {'type_string': 'ss2', 'type_int': 2},
-        # ]
-        # # create model from that json and save it to db
-        # m_updated = self.model(self.json_data)
-        # yield m_updated.save(self.db)
-        # # check, that existed object in db corresponds to new json data
-        # self.assertEqual(m._id, m_updated._id)
-        # find_result = yield m.find(self.db, {"_id": m_updated._id})
-        # self.assertEqual(len(find_result), 1)
-        # m_updated_from_db = find_result[0]
-        # json_updated_from_db = m_updated_from_db.to_primitive()
-        # self.assertEqual(self.json_data, json_updated_from_db)
