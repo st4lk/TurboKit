@@ -124,7 +124,7 @@ class BaseModel(SchematicsModel):
             obj = yield ExampleModel.find_one(self.db, {"last_name": "Sara"})
             yield obj.remove(self.db)
         """
-        yield self.remove_entries(db, {"_id": self._id}, collection)
+        yield self.remove_entries(db, {"_id": self.pk}, collection)
 
     @gen.coroutine
     def save(self, db=None, collection=None, ser=None):
@@ -211,7 +211,7 @@ class BaseModel(SchematicsModel):
         This is a helper for cls.update, but it will pass query {"_id": self.id}
         automatically.
         """
-        result = yield self.__class__.update(db, {"_id": self._id}, ser, **kwargs)
+        result = yield self.__class__.update(db, {"_id": self.pk}, ser, **kwargs)
         raise gen.Return(result)
 
     @classmethod

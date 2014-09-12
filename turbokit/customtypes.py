@@ -4,6 +4,11 @@ from bson.objectid import ObjectId
 
 
 class ObjectIdType(SchematicsObjectIdType):
+
+    def __init__(self, *args, **kwargs):
+        kwargs['serialize_when_none'] = False
+        super(ObjectIdType, self).__init__(*args, **kwargs)
+
     def to_mongo(self, value, context=None):
         if not isinstance(value, ObjectId):
             value = ObjectId(value)
