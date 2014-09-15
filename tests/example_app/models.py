@@ -26,7 +26,6 @@ class SchematicsFieldsModel(BaseModel):
     # base fields
     type_string = types.StringType()
     type_int = types.IntType()
-    type_string = types.StringType()
     type_uuid = types.UUIDType()
     type_IPv4 = types.IPv4Type()
     type_url = types.URLType()

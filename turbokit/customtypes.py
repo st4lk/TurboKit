@@ -36,10 +36,6 @@ class ModelReferenceType(ObjectIdType):
         # super(ModelReferenceType, self).__init__(
         #     validators=[validate_model] + validators, **kwargs)
 
-    def to_primitive(self, value, context=None, expand_related=False):
-        # TODO: respect expand_related
-        return str(value)
-
     def to_mongo(self, value, context=None):
         # TODO: currently use SchematicsModel to avoid cycle imports
         if isinstance(value, SchematicsModel):

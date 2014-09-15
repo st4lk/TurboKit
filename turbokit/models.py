@@ -6,7 +6,7 @@ from tornado import gen, ioloop
 from schematics.models import Model as SchematicsModel
 from pymongo.errors import ConnectionFailure
 from .utils import methodize
-from .transforms import to_primitive, to_mongo
+from .transforms import to_mongo
 from .customtypes import ObjectIdType
 
 l = logging.getLogger(__name__)
@@ -383,14 +383,6 @@ class BaseModel(SchematicsModel):
 
     def to_mongo(self, role=None, context=None, expand_related=False):
         return to_mongo(self.__class__, self, role=role, context=context)
-
-    def to_primitive(self, role=None, context=None, expand_related=False):
-        """
-        Accepts additional parameter expand_related.
-        For base documentation look SchematicsModel.to_primitive
-        """
-        return to_primitive(self.__class__, self, role=role, context=context,
-            expand_related=expand_related)
 
     def serialize(self, role=None, context=None, expand_related=False):
         """
