@@ -11,6 +11,9 @@ class SimpleModel(BaseModel):
     title = types.StringType(default='No name')
     secret = types.StringType()
 
+    def __unicode__(self):
+        return self.title
+
 
 class NestedModel(SchematicsModel):
     type_string = types.StringType()

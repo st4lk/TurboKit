@@ -8,6 +8,7 @@ from pymongo.errors import ConnectionFailure
 from .utils import methodize
 from .transforms import to_mongo
 from .customtypes import ObjectIdType
+from .managers import AsyncManagerMetaClass
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -31,6 +32,8 @@ class BaseModel(SchematicsModel):
 
         obj = yield MyModel.find_one(db, {"i": 3})
     """
+    __metaclass__ = AsyncManagerMetaClass
+
     RECONNECT_TRIES = 5
     RECONNECT_TIMEOUT = 2  # in seconds
 
