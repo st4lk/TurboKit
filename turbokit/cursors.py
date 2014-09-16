@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import motor
 import functools
 from tornado.concurrent import return_future
 

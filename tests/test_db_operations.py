@@ -41,16 +41,16 @@ class TestDbOperations(BaseTest):
     def test_sort(self):
         db = self.default_db
         models = yield self._create_models(db, count=9)
-        result = yield SimpleModel.objects.set_db(db).filter({}).sort("title", pymongo.DESCENDING).all()
-        for db_model, model in zip(result, reversed(sorted(models, key=lambda x: x.title))):
-            self.assertEqual(db_model.title, model.title)
-            self.assertEqual(db_model._id, model._id)
+        result = yield SimpleModel.objects.set_db(db).filter({})\
+            .sort("title", pymongo.DESCENDING).all()
+        for db_model, model in zip(result, sorted(models, key=lambda x: (-int(x.title), int(x.secret)))):
+            self.assertEqual(db_model, model)
 
     @gen.coroutine
     def _create_models(self, db, count=5):
         models = []
         for i in range(count):
-            m = SimpleModel({"title": "t" + str(i), "secret": "s" + str(i)})
+            m = SimpleModel({"title": str(i / 2 + i % 2), "secret": str(i)})
             yield m.save(db)
             models.append(m)
         raise gen.Return(models)
