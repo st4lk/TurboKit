@@ -9,7 +9,7 @@ from example_app.models import SimpleModel
 class TestDbOperations(BaseTest):
 
     @gen_test
-    def test_save(self):
+    def test_save_and_get(self):
         secret = 'abbcc123'
         m = SimpleModel({"title": "Test model", "secret": secret})
         db = self.default_db

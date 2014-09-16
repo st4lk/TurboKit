@@ -55,7 +55,7 @@ class BaseSerializationTest(BaseTest):
     @gen.coroutine
     def _get_json_from_db_and_check_count(self, instance, count=1):
         find_result = yield instance.objects.set_db(self.db)\
-            .filter({"_id": instance._id}).all()
+            .filter({"_id": instance.pk}).all()
         self.assertEqual(len(find_result), count)
         m_from_db = find_result[0]
         json_from_db = m_from_db.to_primitive()
@@ -76,7 +76,7 @@ class TestSerializationCompound(BaseSerializationTest):
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         self.assertEqual(self.json_data, json_from_db)
         # update some field in json
-        self.json_data["id"] = str(m._id)
+        self.json_data["id"] = str(m.pk)
         self.json_data['type_string'] = 'new_value'
         self.json_data['type_list'] = ['str1', 'str2']
         self.json_data['type_dict'] = {'k3': 8, 'k4': 9}
@@ -91,9 +91,9 @@ class TestSerializationCompound(BaseSerializationTest):
         m_updated = self.model(self.json_data)
         yield m_updated.save(self.db)
         # check, that existed object in db corresponds to new json data
-        self.assertEqual(m._id, m_updated._id)
+        self.assertEqual(m.pk, m_updated.pk)
         find_result = yield self.model.objects.set_db(self.db)\
-            .filter({"_id": m_updated._id}).all()
+            .filter({"_id": m_updated.pk}).all()
         self.assertEqual(len(find_result), 1)
         m_updated_from_db = find_result[0]
         json_updated_from_db = m_updated_from_db.to_primitive()
@@ -139,7 +139,7 @@ class TestSerializationCompound(BaseSerializationTest):
                 {'type_string': 'ss1', 'type_int': 1},
             ]
         }
-        yield m.__class__.update(self.db, {"_id": m._id}, updated_json_for_cls)
+        yield m.__class__.update(self.db, {"_id": m.pk}, updated_json_for_cls)
         # check, that model from db corresponds to updated_json_for_cls data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         expected_cls_json = dict(expected_json)
@@ -152,7 +152,31 @@ class TestSerializationModelReference(BaseSerializationTest):
 
     @gen_test
     def test_ref_serialize_save(self):
-        # create model from json
+        m, sm = yield self._create_model_with_ref_model()
+        # check, that model from db corresponds to json data
+        json_from_db = yield self._get_json_from_db_and_check_count(m)
+        self.json_data['type_ref_simplemodel'] = str(sm.pk)
+        self.assertEqual(self.json_data, json_from_db)
+        m_from_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
+        self.assertEqual(m_from_db.type_ref_simplemodel, sm.pk)
+
+    @gen_test
+    def test_prefetch_related_get_single_field(self):
+        m, sm = yield self._create_model_with_ref_model()
+        # check, that model from db corresponds to json data
+        m_from_db = yield self.model.objects.set_db(self.db)\
+            .prefetch_related('type_ref_simplemodel').get({"id": m.pk})
+        self.assertTrue(isinstance(m_from_db.type_ref_simplemodel, SimpleModel))
+        self.assertEqual(m_from_db.type_ref_simplemodel.pk, sm.pk)
+        # import pdb; pdb.set_trace()
+        json_from_db = m_from_db.to_primitive()
+        self.assertEqual(json_from_db['id'], str(m.pk))
+        self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
+        m_from_db.to_mongo()
+        self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+
+    @gen.coroutine
+    def _create_model_with_ref_model(self):
         sm = SimpleModel(dict(title="some string", secret="parol"))
         sm.validate()
         yield sm.save(self.db)
@@ -160,9 +184,4 @@ class TestSerializationModelReference(BaseSerializationTest):
         m.type_ref_simplemodel = sm
         m.validate()
         yield m.save(self.db)
-        # check, that model from db corresponds to json data
-        json_from_db = yield self._get_json_from_db_and_check_count(m)
-        self.json_data['type_ref_simplemodel'] = str(sm._id)
-        self.assertEqual(self.json_data, json_from_db)
-        m_from_db = yield self.model.objects.set_db(self.db).get({"id": m._id})
-        self.assertEqual(m_from_db.type_ref_simplemodel, sm._id)
+        raise gen.Return((m, sm))

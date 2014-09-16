@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
 from schematics.models import Model as SchematicsModel
+from schematics.transforms import export_loop
 from bson.objectid import ObjectId
 
 
@@ -46,3 +47,21 @@ class ModelReferenceType(ObjectIdType):
         if isinstance(value, SchematicsModel):
             value = value.pk
         return super(ModelReferenceType, self).to_native(value, context=context)
+
+    def export_loop(self, model_instance, field_converter,
+                    role=None, print_none=False):
+        if not isinstance(model_instance, self.model_class) or\
+                getattr(field_converter, 'to_mongo', False):
+            return field_converter(self, model_instance)
+        else:
+            model_class = model_instance.__class__
+            shaped = export_loop(model_class, model_instance,
+                                 field_converter,
+                                 role=role, print_none=print_none)
+
+            if shaped and len(shaped) == 0 and self.allow_none():
+                return shaped
+            elif shaped:
+                return shaped
+            elif print_none:
+                return shaped

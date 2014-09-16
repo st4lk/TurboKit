@@ -11,6 +11,7 @@ def to_mongo(cls, instance_or_dict, role=None, raise_error_on_role=True,
         if hasattr(field, 'to_mongo'):
             return field.to_mongo(value, context=context)
         return field.to_primitive(value, context=context)
+    field_converter.to_mongo = True
 
     data = export_loop(cls, instance_or_dict, field_converter,
                        role=role, raise_error_on_role=raise_error_on_role)

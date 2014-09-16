@@ -3,38 +3,53 @@
 Base code is taken from https://github.com/wsantos/motorm
 """
 # from tornado.gen import coroutine
+import logging
 from bson.objectid import ObjectId
 from schematics.models import ModelMeta
 from tornado.concurrent import return_future
+from tornado import gen
 from .cursors import AsyncManagerCursor
+from .customtypes import ModelReferenceType
+
+l = logging.getLogger(__name__)
 
 
 class AsyncManager(object):
 
-    def __init__(self, cls, collection, db=None):
+    def __init__(self, cls, collection, db=None, prefetch_related=None):
         self.collection = collection
         self.cls = cls
         self.db = db
+        if prefetch_related is not None:
+            self._prefetch_related = set(prefetch_related)
+        else:
+            self._prefetch_related = set()
 
-    @return_future
+    @gen.coroutine
     def get(self, query=None, callback=None):
         # TODO: add reconnects
-
-        def handle_get_response(response, error):
-            if error:
-                raise error
-            else:
-                if response is None:
-                    callback(None)
-                else:
-                    callback(self.cls(response))
-        if query is None:
-            query = {}
 
         if 'id' in query:
             _id = query.pop('id')
             query['_id'] = ObjectId(_id) if not isinstance(_id, ObjectId) else _id
-        self.db[self.collection].find_one(query, callback=handle_get_response)
+        # self.db[self.collection].find_one(query, callback=handle_get_response)
+        response = yield self.db[self.collection].find_one(query)
+        m = self.cls(response)
+        for pr in self._prefetch_related:
+            field = m._fields.get(pr, None)
+            if field:
+                if isinstance(field, ModelReferenceType):
+                    pr_data = yield self.db[field.model_class.MONGO_COLLECTION]\
+                        .find_one({"_id": m[pr]})
+                    setattr(m, pr, field.model_class(pr_data))
+                else:
+                    l.warning("prefetch_related field must be instance of ModelReferenceType, "
+                        "got {0}, class: {1}"
+                        .format(field.__class__.__name__, m.__class__.__name__))
+            else:
+                l.warning("Unknown field '{0}' in '{1}.prefetch_related'"
+                    .format(pr, m.__class__.__name__))
+        raise gen.Return(m)
 
     def set_db(self, db):
         """
@@ -42,6 +57,10 @@ class AsyncManager(object):
         between all models. It is thread safe.
         """
         return AsyncManager(self.cls, self.collection, db)
+
+    def prefetch_related(self, *args):
+        return AsyncManager(self.cls, self.collection, self.db,
+            prefetch_related=self._prefetch_related | set(args))
 
     def filter(self, query):
         cursor = self.db[self.collection].find(query)
