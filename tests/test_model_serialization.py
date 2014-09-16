@@ -168,7 +168,6 @@ class TestSerializationModelReference(BaseSerializationTest):
             .prefetch_related('type_ref_simplemodel').get({"id": m.pk})
         self.assertTrue(isinstance(m_from_db.type_ref_simplemodel, SimpleModel))
         self.assertEqual(m_from_db.type_ref_simplemodel.pk, sm.pk)
-        # import pdb; pdb.set_trace()
         json_from_db = m_from_db.to_primitive()
         self.assertEqual(json_from_db['id'], str(m.pk))
         self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
