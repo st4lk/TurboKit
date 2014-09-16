@@ -53,8 +53,9 @@ class BaseSerializationTest(BaseTest):
         return d
 
     @gen.coroutine
-    def _get_json_from_db_and_check_count(self, obj, count=1):
-        find_result = yield obj.find(self.db, {"_id": obj._id})
+    def _get_json_from_db_and_check_count(self, instance, count=1):
+        find_result = yield instance.objects.set_db(self.db)\
+            .filter({"_id": instance._id}).all()
         self.assertEqual(len(find_result), count)
         m_from_db = find_result[0]
         json_from_db = m_from_db.to_primitive()
@@ -91,7 +92,8 @@ class TestSerializationCompound(BaseSerializationTest):
         yield m_updated.save(self.db)
         # check, that existed object in db corresponds to new json data
         self.assertEqual(m._id, m_updated._id)
-        find_result = yield m.find(self.db, {"_id": m_updated._id})
+        find_result = yield self.model.objects.set_db(self.db)\
+            .filter({"_id": m_updated._id}).all()
         self.assertEqual(len(find_result), 1)
         m_updated_from_db = find_result[0]
         json_updated_from_db = m_updated_from_db.to_primitive()

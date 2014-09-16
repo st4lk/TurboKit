@@ -76,11 +76,13 @@ class BaseModel(SchematicsModel):
 
     @classmethod
     def find_list_len(cls):
+        """Deprecated. Use model manager"""
         return getattr(cls, 'FIND_LIST_LEN', MAX_FIND_LIST_LEN)
 
     @classmethod
     @gen.coroutine
     def find_one(cls, db, query, collection=None, model=True):
+        """Deprecated. Use model manager"""
         result = None
         query = cls.process_query(query)
         for i in cls.reconnect_amount():
@@ -101,6 +103,7 @@ class BaseModel(SchematicsModel):
     @gen.coroutine
     def remove_entries(cls, db, query, collection=None):
         """
+        TODO: move to model manager
         Removes documents by given query.
         Example:
             obj = yield ExampleModel.remove_entries(
@@ -227,8 +230,9 @@ class BaseModel(SchematicsModel):
     @gen.coroutine
     def find(cls, db, query, fields=None, collection=None, model=True, list_len=None):
         """
-        Returns a list of found documents.
+        Deprecated. Use model manager
 
+        Returns a list of found documents.
         :arg db: database, returned from MotorClient
         :arg query: dict of fields to be searched by
         :arg fields: return only this fields, instead of all
@@ -261,6 +265,7 @@ class BaseModel(SchematicsModel):
     @classmethod
     @gen.coroutine
     def count(cls, db, query):
+        """Deprecated. Use model manager"""
         cursor = cls.get_cursor(db, query)
         for i in cls.reconnect_amount():
             try:
@@ -275,6 +280,7 @@ class BaseModel(SchematicsModel):
     @classmethod
     @gen.coroutine
     def aggregate(cls, db, pipe_list, collection=None):
+        """TODO: move to model manager"""
         c = cls.check_collection(collection)
         for i in cls.reconnect_amount():
             try:
