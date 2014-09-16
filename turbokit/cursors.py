@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-import functools
 from tornado.concurrent import return_future
 
 
 class AsyncManagerCursor(object):
 
-    def __init__(self, cls, cursor, batch=20):
+    def __init__(self, cls, cursor):
         self.cursor = cursor
         self.cls = cls
-        self.batch = batch
 
     @property
     def fetch_next(self):
@@ -25,20 +23,9 @@ class AsyncManagerCursor(object):
     @return_future
     def all(self, callback):
 
-        return_list = []
-
-        def handle_all_response(response, error, return_list):
+        def handle_all_response(response, error):
             if error:
                 raise error
-            else:
-                if response:
-                    return_list += [self.cls(document)
-                                    for document in response]
-                    self.cursor.to_list(self.batch,
-                        callback=functools.partial(handle_all_response,
-                        return_list=return_list))
-                else:
-                    callback(return_list)
+            callback([self.cls(d) for d in response])
 
-        self.cursor.to_list(self.batch, callback=functools.partial(
-            handle_all_response, return_list=return_list))
+        self.cursor.to_list(None, callback=handle_all_response)
