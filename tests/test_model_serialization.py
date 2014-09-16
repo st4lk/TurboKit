@@ -164,3 +164,5 @@ class TestSerializationModelReference(BaseSerializationTest):
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         self.json_data['type_ref_simplemodel'] = str(sm._id)
         self.assertEqual(self.json_data, json_from_db)
+        m_from_db = yield self.model.objects.set_db(self.db).get({"id": m._id})
+        self.assertEqual(m_from_db.type_ref_simplemodel, sm._id)
