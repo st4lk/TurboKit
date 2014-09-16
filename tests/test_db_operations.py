@@ -42,8 +42,8 @@ class TestDbOperations(BaseTest):
         db = self.default_db
         models = yield self._create_models(db, count=9)
         result = yield SimpleModel.objects.set_db(db).filter({})\
-            .sort("title", pymongo.DESCENDING).all()
-        for db_model, model in zip(result, sorted(models, key=lambda x: (-int(x.title), int(x.secret)))):
+            .sort([("title", pymongo.DESCENDING), ("secret", pymongo.DESCENDING)]).all()
+        for db_model, model in zip(result, sorted(models, key=lambda x: (-int(x.title), -int(x.secret)))):
             self.assertEqual(db_model, model)
 
     @gen_test
