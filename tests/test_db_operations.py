@@ -46,6 +46,15 @@ class TestDbOperations(BaseTest):
         for db_model, model in zip(result, sorted(models, key=lambda x: (-int(x.title), int(x.secret)))):
             self.assertEqual(db_model, model)
 
+    @gen_test
+    def test_skip_limit(self):
+        db = self.default_db
+        models = yield self._create_models(db, count=9)
+        result = yield SimpleModel.objects.set_db(db).filter({})\
+            .sort("secret", pymongo.ASCENDING).skip(2).limit(2).all()
+        for db_model, model in zip(result, sorted(models, key=lambda x: x.secret)[2:4]):
+            self.assertEqual(db_model, model)
+
     @gen.coroutine
     def _create_models(self, db, count=5):
         models = []

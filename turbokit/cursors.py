@@ -20,6 +20,14 @@ class AsyncManagerCursor(object):
         self.cursor = self.cursor.sort(*args, **kwargs)
         return self
 
+    def skip(self, *args, **kwargs):
+        self.cursor = self.cursor.skip(*args, **kwargs)
+        return self
+
+    def limit(self, *args, **kwargs):
+        self.cursor = self.cursor.limit(*args, **kwargs)
+        return self
+
     @return_future
     def all(self, callback):
 
