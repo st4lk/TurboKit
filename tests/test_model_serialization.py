@@ -171,11 +171,30 @@ class TestSerializationModelReference(BaseSerializationTest):
         json_from_db = m_from_db.to_primitive()
         self.assertEqual(json_from_db['id'], str(m.pk))
         self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
-        m_from_db.to_mongo()
         self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
 
+    @gen_test
+    def test_prefetch_related_all_single_field(self):
+        created_models = yield self._create_models()
+        # check, that model from db corresponds to json data
+        mdls_from_db = yield self.model.objects.set_db(self.db)\
+            .prefetch_related('type_ref_simplemodel').all()
+        for m_created, m_from_db in zip(
+                sorted(created_models, key=lambda x: x[0].pk),
+                sorted(mdls_from_db, key=lambda x: x.pk)):
+            m = m_created[0]
+            sm = m_created[1]
+            self.assertEqual(m.pk, m_from_db.pk)
+            self.assertTrue(isinstance(m_from_db.type_ref_simplemodel, SimpleModel))
+            self.assertEqual(m.type_ref_simplemodel,
+                m_from_db.type_ref_simplemodel.pk)
+            json_from_db = m_from_db.to_primitive()
+            self.assertEqual(json_from_db['id'], str(m.pk))
+            self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
+            self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+
     @gen.coroutine
-    def _create_model_with_ref_model(self):
+    def _create_model_with_ref_model(self, title="somng", secret="prl"):
         sm = SimpleModel(dict(title="some string", secret="parol"))
         sm.validate()
         yield sm.save(self.db)
@@ -184,3 +203,12 @@ class TestSerializationModelReference(BaseSerializationTest):
         m.validate()
         yield m.save(self.db)
         raise gen.Return((m, sm))
+
+    @gen.coroutine
+    def _create_models(self, count=5):
+        results = []
+        for i in range(5):
+            m, sm = yield self._create_model_with_ref_model(
+                title=str("i"), secret="s" + str(i))
+            results.append((m, sm))
+        raise gen.Return(results)

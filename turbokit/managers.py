@@ -18,10 +18,7 @@ class AsyncManager(object):
         self.collection = collection
         self.cls = cls
         self.db = db
-        if prefetch_related is not None:
-            self._prefetch_related = set(prefetch_related)
-        else:
-            self._prefetch_related = set()
+        self._prefetch_related = set(prefetch_related) if prefetch_related else set()
 
     @gen.coroutine
     def get(self, query=None, callback=None):
@@ -30,7 +27,6 @@ class AsyncManager(object):
         if 'id' in query:
             _id = query.pop('id')
             query['_id'] = ObjectId(_id) if not isinstance(_id, ObjectId) else _id
-        # self.db[self.collection].find_one(query, callback=handle_get_response)
         response = yield self.db[self.collection].find_one(query)
         m = self.cls(response)
         for pr in self._prefetch_related:
@@ -67,7 +63,8 @@ class AsyncManager(object):
     @gen.coroutine
     def all(self):
         cursor = self.db[self.collection].find({})
-        results = yield AsyncManagerCursor(self.cls, cursor).all()
+        results = yield AsyncManagerCursor(self.cls, cursor, self.db,
+            prefetch_related=self._prefetch_related).all()
         raise gen.Return(results)
 
 
