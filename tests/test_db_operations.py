@@ -32,7 +32,7 @@ class TestDbOperations(BaseTest):
     def test_filter(self):
         db = self.default_db
         yield self._create_models(db)
-        titles = ["t1", "t2"]
+        titles = ["1", "2"]
         result = yield SimpleModel.objects.set_db(db).filter(
             {"title": {"$in": titles}}).all()
         self.assertEqual(set(titles), set(map(lambda x: x.title, result)))
@@ -54,6 +54,18 @@ class TestDbOperations(BaseTest):
             .sort("secret", pymongo.ASCENDING).skip(2).limit(2).all()
         for db_model, model in zip(result, sorted(models, key=lambda x: x.secret)[2:4]):
             self.assertEqual(db_model, model)
+
+    @gen_test
+    def test_index_slice(self):
+        db = self.default_db
+        models = yield self._create_models(db, count=9)
+        result = yield SimpleModel.objects.set_db(db).filter({})\
+            .sort("secret", pymongo.ASCENDING)[2:4]
+        for db_model, model in zip(result, sorted(models, key=lambda x: x.secret)[2:4]):
+            self.assertEqual(db_model, model)
+        result = yield SimpleModel.objects.set_db(db).filter({})\
+            .sort("secret", pymongo.ASCENDING)[2]
+        self.assertEqual(result, sorted(models, key=lambda x: x.secret)[2])
 
     @gen.coroutine
     def _create_models(self, db, count=5):

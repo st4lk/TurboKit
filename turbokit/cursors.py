@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from tornado.concurrent import return_future
+from functools import partial
 
 
 class AsyncManagerCursor(object):
@@ -27,6 +28,26 @@ class AsyncManagerCursor(object):
     def limit(self, *args, **kwargs):
         self.cursor = self.cursor.limit(*args, **kwargs)
         return self
+
+    @classmethod
+    @return_future
+    def _get_first_element(cls, response, callback=None, **kwargs):
+        if not response:
+            raise IndexError("no such item for Cursor instance")
+        callback(response[0])
+
+    @return_future
+    def __getitem__(self, index, *args, **kwargs):
+        callback = kwargs['callback']
+        if isinstance(index, slice):
+            self.cursor = self.cursor[index]
+            self.all(callback=callback)
+        elif isinstance(index, (int, long)):
+            self.cursor = self.cursor[index:index+1]
+            self.all(callback=partial(self._get_first_element, callback=callback))
+        else:
+            raise TypeError(u"index {0} cannot be applied to Cursor "
+                            u"instances".format(index))
 
     @return_future
     def all(self, callback):

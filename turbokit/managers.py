@@ -50,7 +50,7 @@ class AsyncManager(object):
     @return_future
     def all(self, callback):
         cursor = self.db[self.collection].find({})
-        AsyncManagerCursor(self.cls, cursor).all(callback)
+        AsyncManagerCursor(self.cls, cursor).all(callback=callback)
 
 
 class AsyncManagerMetaClass(ModelMeta):
