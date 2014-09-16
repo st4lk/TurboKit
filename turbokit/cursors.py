@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from tornado.concurrent import return_future
-from functools import partial
+from tornado import gen
 
 
 class AsyncManagerCursor(object):
@@ -29,32 +28,22 @@ class AsyncManagerCursor(object):
         self.cursor = self.cursor.limit(*args, **kwargs)
         return self
 
-    @classmethod
-    @return_future
-    def _get_first_element(cls, response, callback=None, **kwargs):
-        if not response:
-            raise IndexError("no such item for Cursor instance")
-        callback(response[0])
-
-    @return_future
+    @gen.coroutine
     def __getitem__(self, index, *args, **kwargs):
-        callback = kwargs['callback']
+        result = None
         if isinstance(index, slice):
             self.cursor = self.cursor[index]
-            self.all(callback=callback)
+            result = yield self.all()
         elif isinstance(index, (int, long)):
             self.cursor = self.cursor[index:index+1]
-            self.all(callback=partial(self._get_first_element, callback=callback))
+            result = yield self.all()
+            result = result[0]
         else:
             raise TypeError(u"index {0} cannot be applied to Cursor "
                             u"instances".format(index))
+        raise gen.Return(result)
 
-    @return_future
-    def all(self, callback):
-
-        def handle_all_response(response, error):
-            if error:
-                raise error
-            callback([self.cls(d) for d in response])
-
-        self.cursor.to_list(None, callback=handle_all_response)
+    @gen.coroutine
+    def all(self):
+        response = yield self.cursor.to_list(None)
+        raise gen.Return([self.cls(d) for d in response])

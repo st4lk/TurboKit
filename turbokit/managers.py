@@ -2,11 +2,9 @@
 """
 Base code is taken from https://github.com/wsantos/motorm
 """
-# from tornado.gen import coroutine
 import logging
 from bson.objectid import ObjectId
 from schematics.models import ModelMeta
-from tornado.concurrent import return_future
 from tornado import gen
 from .cursors import AsyncManagerCursor
 from .customtypes import ModelReferenceType
@@ -66,10 +64,11 @@ class AsyncManager(object):
         cursor = self.db[self.collection].find(query)
         return AsyncManagerCursor(self.cls, cursor)
 
-    @return_future
-    def all(self, callback):
+    @gen.coroutine
+    def all(self):
         cursor = self.db[self.collection].find({})
-        AsyncManagerCursor(self.cls, cursor).all(callback=callback)
+        results = yield AsyncManagerCursor(self.cls, cursor).all()
+        raise gen.Return(results)
 
 
 class AsyncManagerMetaClass(ModelMeta):
