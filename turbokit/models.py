@@ -42,6 +42,7 @@ class BaseModel(SchematicsModel):
     def __init__(self, *args, **kwargs):
         self.set_db(kwargs.pop('db', None))
         self.update = methodize(self.__class__._update_instance, self)
+        # TODO allow to set model instance for ModelReferenceType, not only id
         super(BaseModel, self).__init__(*args, **kwargs)
 
     @property

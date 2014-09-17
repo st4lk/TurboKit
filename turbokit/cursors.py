@@ -15,16 +15,22 @@ class PrefetchRelatedMixin(object):
         return self
 
     @gen.coroutine
-    def fetch_related_objects(self, objects_list):
-        prefetch_ids = []
+    def fetch_related_objects(self, objects_list, related_fields=None):
+        prefetch_data = []
         if objects_list:
             parent_model = objects_list[0]
-            for pr in self._prefetch_related:
+            if related_fields is None:
+                related_fields = self._prefetch_related
+            for pr_full in related_fields:
+                if "." in pr_full:
+                    pr, pr_left = pr_full.split(".", 1)
+                else:
+                    pr, pr_left = pr_full, None
                 field = parent_model._fields.get(pr, None)
                 if field:
                     if isinstance(field, ModelReferenceType):
-                        prefetch_ids.append(
-                            (field, pr, map(lambda m: getattr(m, pr), objects_list)))
+                        prefetch_data.append((field, pr, pr_left,
+                            map(lambda m: getattr(m, pr), objects_list)))
                     else:
                         l.warning("prefetch_related field must be instance of ModelReferenceType, "
                             "got {0}, class: {1}"
@@ -32,13 +38,18 @@ class PrefetchRelatedMixin(object):
                 else:
                     l.warning("Unknown field '{0}' in '{1}.prefetch_related'"
                         .format(pr, parent_model.__class__.__name__))
-        for pr_field, pr_field_name, ids in prefetch_ids:
+        for pr_field, pr_field_name, pr_child_field_names, ids in prefetch_data:
             cursor = self.db[pr_field.model_class.MONGO_COLLECTION]\
                 .find({"_id": {"$in": ids}})
             pr_data_list = yield cursor.to_list(None)
-            # TODO is return models have same order, that provided ids?
-            for m, pr_data in zip(objects_list, pr_data_list):
-                setattr(m,  pr_field_name, pr_field.model_class(pr_data))
+            pr_model_list = map(pr_field.model_class, pr_data_list)
+            if pr_child_field_names:
+                # fetch child related fields recursively
+                pr_model_list = yield self.fetch_related_objects(pr_model_list,
+                    related_fields=set([pr_child_field_names]))
+            # TODO are return models have same order, that provided ids?
+            for m, pr_model in zip(objects_list, pr_model_list):
+                setattr(m, pr_field_name, pr_model)
         raise gen.Return(objects_list)
 
 

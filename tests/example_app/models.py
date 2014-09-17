@@ -13,12 +13,22 @@ class SimpleModel(BaseModel):
         return self.title
 
 
-class UserModel(BaseModel):
+class User(BaseModel):
     name = types.StringType()
     age = types.IntType()
 
     def __unicode__(self):
         return self.name
+
+
+class Event(BaseModel):
+    title = types.StringType()
+    user = ModelReferenceType(User)
+
+
+class Record(BaseModel):
+    title = types.StringType()
+    event = ModelReferenceType(Event)
 
 
 class NestedModel(SchematicsModel):
@@ -62,7 +72,7 @@ class SchematicsFieldsModel(BaseModel):
 
     # reference fields
     type_ref_simplemodel = ModelReferenceType(SimpleModel)
-    type_ref_usermodel = ModelReferenceType(UserModel)
+    type_ref_usermodel = ModelReferenceType(User)
 
     class Options:
         serialize_when_none = False

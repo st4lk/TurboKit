@@ -6,7 +6,8 @@ from tornado.testing import gen_test
 from tornado import gen
 from schematics import types
 from schematics.types import compound
-from example_app.models import SchematicsFieldsModel, SimpleModel, UserModel
+from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
+    Event, Record)
 
 
 class BaseSerializationTest(BaseTest):
@@ -178,7 +179,7 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
             SimpleModel)
         self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
-            UserModel)
+            User)
 
     @gen_test
     def test_prefetch_related_all_root_fields(self):
@@ -209,7 +210,7 @@ class TestSerializationModelReference(BaseSerializationTest):
             self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
                 SimpleModel)
             self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
-                UserModel)
+                User)
             self.assertEqual(m.pk, m_from_db.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_usermodel'], um.pk)
@@ -234,10 +235,21 @@ class TestSerializationModelReference(BaseSerializationTest):
             self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
                 SimpleModel)
             self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
-                UserModel)
+                User)
             self.assertEqual(m.pk, m_from_db.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_usermodel'], um.pk)
+
+    @gen_test
+    def test_prefetch_related_get_child_fields(self):
+        user = yield self._create_user()
+        event = Event(dict(title=self.get_random_string(), user=user.pk))
+        yield event.save(self.db)
+        record = Record(dict(title=self.get_random_string(), event=event.pk))
+        yield record.save(self.db)
+        record_from_db = yield Record.objects.set_db(self.db)\
+            .prefetch_related('event.user').get({"id": record.pk})
+        self.assertChildRelatedModelFetched(record, record_from_db, event, user)
 
     def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
             ref_model_field_name, ref_m_class):
@@ -248,14 +260,29 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(json_from_db['id'], str(m_source.pk))
         self.assertEqual(json_from_db[ref_model_field_name], ref_model.to_primitive())
 
+    def assertChildRelatedModelFetched(self, record, record_from_db, event, user):
+        self.assertTrue(isinstance(record_from_db.event, Event))
+        self.assertEqual(record_from_db.event.pk, event.pk)
+        self.assertTrue(isinstance(record_from_db.event.user, User))
+        self.assertEqual(record_from_db.event.user.pk, user.pk)
+        json_from_db = record_from_db.to_primitive()
+        self.assertEqual(json_from_db['id'], str(record.pk))
+        self.assertEqual(json_from_db['event']['id'], str(event.pk))
+        self.assertEqual(json_from_db['event']['user']['id'], str(user.pk))
+
+    @gen.coroutine
+    def _create_user(self):
+        um = User(dict(name=self.get_random_string(), age=randint(20, 50)))
+        yield um.save(self.db)
+        raise gen.Return(um)
+
     @gen.coroutine
     def _create_model_with_ref_model(self):
         sm = SimpleModel(dict(title=self.get_random_string(),
             secret=self.get_random_string()))
         sm.validate()
         yield sm.save(self.db)
-        um = UserModel(dict(name=self.get_random_string(), age=randint(20, 50)))
-        yield um.save(self.db)
+        um = yield self._create_user()
         m = self.model(self.json_data)
         m.type_ref_simplemodel = sm
         m.type_ref_usermodel = um
