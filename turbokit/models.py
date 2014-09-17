@@ -63,12 +63,8 @@ class BaseModel(SchematicsModel):
         return self._id
 
     @classmethod
-    def get_model_name(cls):
-        return cls.MONGO_COLLECTION
-
-    @classmethod
     def get_collection(cls):
-        return getattr(cls, 'MONGO_COLLECTION', None)
+        return cls.MONGO_COLLECTION
 
     @classmethod
     def check_collection(cls, collection):

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import string
+import random
 import motor
 from tornado.testing import AsyncHTTPTestCase
 from tornado.ioloop import IOLoop
@@ -39,3 +41,7 @@ class BaseTest(AsyncHTTPTestCase):
         for dname in self.DATABASES:
             async_op(dname)
             self.wait()
+
+    @staticmethod
+    def get_random_string(size=10, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))

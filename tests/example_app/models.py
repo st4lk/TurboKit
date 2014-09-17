@@ -6,13 +6,19 @@ from schematics.types import compound
 
 
 class SimpleModel(BaseModel):
-    MONGO_COLLECTION = 'simple'
-
     title = types.StringType(default='No name')
     secret = types.StringType()
 
     def __unicode__(self):
         return self.title
+
+
+class UserModel(BaseModel):
+    name = types.StringType()
+    age = types.IntType()
+
+    def __unicode__(self):
+        return self.name
 
 
 class NestedModel(SchematicsModel):
@@ -56,6 +62,7 @@ class SchematicsFieldsModel(BaseModel):
 
     # reference fields
     type_ref_simplemodel = ModelReferenceType(SimpleModel)
+    type_ref_usermodel = ModelReferenceType(UserModel)
 
     class Options:
         serialize_when_none = False

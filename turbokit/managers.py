@@ -90,7 +90,6 @@ class AsyncManagerMetaClass(ModelMeta):
             # Add all attributes to the class.
             for obj_name, obj in attrs.items():
                 setattr(new_class, obj_name, obj)
-
             manager = AsyncManager(new_class, collection)
             setattr(new_class, "objects", manager)
 

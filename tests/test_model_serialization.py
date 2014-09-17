@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import collections
+from random import randint
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
 from schematics import types
 from schematics.types import compound
-from example_app.models import SchematicsFieldsModel, SimpleModel
+from example_app.models import SchematicsFieldsModel, SimpleModel, UserModel
 
 
 class BaseSerializationTest(BaseTest):
@@ -161,54 +162,85 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(m_from_db.type_ref_simplemodel, sm.pk)
 
     @gen_test
-    def test_prefetch_related_get_single_field(self):
-        m, sm = yield self._create_model_with_ref_model()
-        # check, that model from db corresponds to json data
-        m_from_db = yield self.model.objects.set_db(self.db)\
-            .prefetch_related('type_ref_simplemodel').get({"id": m.pk})
-        self.assertTrue(isinstance(m_from_db.type_ref_simplemodel, SimpleModel))
-        self.assertEqual(m_from_db.type_ref_simplemodel.pk, sm.pk)
-        json_from_db = m_from_db.to_primitive()
-        self.assertEqual(json_from_db['id'], str(m.pk))
-        self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
-        self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+    def test_prefetch_related_get_root_fields(self):
+        m, sm, um = yield self._create_model_with_ref_model()
+        model_qs = self.model.objects.set_db(self.db)
+        # check one reference field
+        m_from_db = yield model_qs.prefetch_related('type_ref_simplemodel')\
+            .get({"id": m.pk})
+        self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
+            SimpleModel)
+        self.assertEqual(m_from_db.type_ref_usermodel, um.pk)
+        # check two reference field
+        m_from_db = yield model_qs.prefetch_related('type_ref_simplemodel',
+            'type_ref_usermodel').get({"id": m.pk})
+        self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
+            SimpleModel)
+        self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
+            UserModel)
 
     @gen_test
-    def test_prefetch_related_all_single_field(self):
+    def test_prefetch_related_all_root_fields(self):
         created_models = yield self._create_models()
-        # check, that model from db corresponds to json data
-        mdls_from_db = yield self.model.objects.set_db(self.db)\
-            .prefetch_related('type_ref_simplemodel').all()
+        model_qs = self.model.objects.set_db(self.db)
+        # check one reference field
+        mdls_from_db = yield model_qs.prefetch_related('type_ref_simplemodel').all()
         for m_created, m_from_db in zip(
                 sorted(created_models, key=lambda x: x[0].pk),
                 sorted(mdls_from_db, key=lambda x: x.pk)):
             m = m_created[0]
             sm = m_created[1]
+            um = m_created[2]
+            self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
+                SimpleModel)
             self.assertEqual(m.pk, m_from_db.pk)
-            self.assertTrue(isinstance(m_from_db.type_ref_simplemodel, SimpleModel))
-            self.assertEqual(m.type_ref_simplemodel,
-                m_from_db.type_ref_simplemodel.pk)
-            json_from_db = m_from_db.to_primitive()
-            self.assertEqual(json_from_db['id'], str(m.pk))
-            self.assertEqual(json_from_db['type_ref_simplemodel'], sm.to_primitive())
+            self.assertEqual(m_from_db.type_ref_usermodel, um.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+        # check two reference field
+        mdls_from_db = yield model_qs.prefetch_related(
+            'type_ref_simplemodel', 'type_ref_usermodel').all()
+        for m_created, m_from_db in zip(
+                sorted(created_models, key=lambda x: x[0].pk),
+                sorted(mdls_from_db, key=lambda x: x.pk)):
+            m = m_created[0]
+            sm = m_created[1]
+            um = m_created[2]
+            self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
+                SimpleModel)
+            self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
+                UserModel)
+            self.assertEqual(m.pk, m_from_db.pk)
+            self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+            self.assertEqual(m_from_db.to_mongo()['type_ref_usermodel'], um.pk)
+
+    def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
+            ref_model_field_name, ref_m_class):
+        ref_model_field = getattr(m_from_db, ref_model_field_name)
+        self.assertTrue(isinstance(ref_model_field, ref_m_class))
+        self.assertEqual(ref_model_field.pk, ref_model.pk)
+        json_from_db = m_from_db.to_primitive()
+        self.assertEqual(json_from_db['id'], str(m_source.pk))
+        self.assertEqual(json_from_db[ref_model_field_name], ref_model.to_primitive())
 
     @gen.coroutine
-    def _create_model_with_ref_model(self, title="somng", secret="prl"):
-        sm = SimpleModel(dict(title="some string", secret="parol"))
+    def _create_model_with_ref_model(self):
+        sm = SimpleModel(dict(title=self.get_random_string(),
+            secret=self.get_random_string()))
         sm.validate()
         yield sm.save(self.db)
+        um = UserModel(dict(name=self.get_random_string(), age=randint(20, 50)))
+        yield um.save(self.db)
         m = self.model(self.json_data)
         m.type_ref_simplemodel = sm
+        m.type_ref_usermodel = um
         m.validate()
         yield m.save(self.db)
-        raise gen.Return((m, sm))
+        raise gen.Return((m, sm, um))
 
     @gen.coroutine
     def _create_models(self, count=5):
         results = []
         for i in range(5):
-            m, sm = yield self._create_model_with_ref_model(
-                title=str("i"), secret="s" + str(i))
-            results.append((m, sm))
+            m, sm, um = yield self._create_model_with_ref_model()
+            results.append((m, sm, um))
         raise gen.Return(results)

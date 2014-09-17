@@ -8,7 +8,7 @@ l = logging.getLogger(__name__)
 
 class AsyncManagerCursor(object):
 
-    def __init__(self, cls, cursor, db, prefetch_related=None):
+    def __init__(self, cls, cursor, db=None, prefetch_related=None):
         self.cursor = cursor
         self.cls = cls
         self.db = db
@@ -70,10 +70,10 @@ class AsyncManagerCursor(object):
                     l.warning("Unknown field '{0}' in '{1}.prefetch_related'"
                         .format(pr, parent_model.__class__.__name__))
         for pr_field, pr_field_name, ids in prefetch_ids:
-            cursor = self.db[field.model_class.MONGO_COLLECTION]\
+            cursor = self.db[pr_field.model_class.MONGO_COLLECTION]\
                 .find({"_id": {"$in": ids}})
             pr_data_list = yield cursor.to_list(None)
             # TODO is return models have same order, that provided ids?
             for m, pr_data in zip(results, pr_data_list):
-                setattr(m,  pr_field_name, field.model_class(pr_data))
+                setattr(m,  pr_field_name, pr_field.model_class(pr_data))
         raise gen.Return(results)
