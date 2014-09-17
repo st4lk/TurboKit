@@ -32,6 +32,13 @@ class Record(BaseModel):
     simple = ModelReferenceType(SimpleModel)
 
 
+class RecordSeries(BaseModel):
+    title = types.StringType()
+    records = compound.ListType(ModelReferenceType, compound_field=Record)
+    simplies = compound.ListType(ModelReferenceType, compound_field=SimpleModel)
+    main_event = ModelReferenceType(Event)
+
+
 class NestedModel(SchematicsModel):
     type_string = types.StringType()
     type_int = types.IntType()

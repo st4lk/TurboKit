@@ -19,8 +19,12 @@ class ObjectIdType(SchematicsObjectIdType):
 
 class ModelReferenceType(ObjectIdType):
 
-    def __init__(self, model_class, **kwargs):
-        self.model_class = model_class
+    def __init__(self, field, **kwargs):
+        """
+        Keep name `field`, as schematics.types.compound.MultiType
+        use this name in init_compound_field
+        """
+        self.model_class = field
         self.fields = self.model_class.fields
 
         validators = kwargs.pop("validators", [])
