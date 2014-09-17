@@ -11,6 +11,9 @@ branches:
     - master
 
 install:
+    pip install -r requirements.txt
+
+before_script:
     pip install --quiet --use-mirrors pytest coverage
 
 script: coverage run --source turbokit -m py.test
