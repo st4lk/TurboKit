@@ -153,10 +153,11 @@ class TestSerializationModelReference(BaseSerializationTest):
 
     @gen_test
     def test_ref_serialize_save(self):
-        m, sm = yield self._create_model_with_ref_model()
+        m, sm, um = yield self._create_model_with_ref_model()
         # check, that model from db corresponds to json data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         self.json_data['type_ref_simplemodel'] = str(sm.pk)
+        self.json_data['type_ref_usermodel'] = str(um.pk)
         self.assertEqual(self.json_data, json_from_db)
         m_from_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
         self.assertEqual(m_from_db.type_ref_simplemodel, sm.pk)

@@ -29,6 +29,7 @@ class AsyncManager(object):
             query['_id'] = ObjectId(_id) if not isinstance(_id, ObjectId) else _id
         response = yield self.db[self.collection].find_one(query)
         m = self.cls(response)
+
         for pr in self._prefetch_related:
             field = m._fields.get(pr, None)
             if field:
