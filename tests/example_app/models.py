@@ -29,6 +29,7 @@ class Event(BaseModel):
 class Record(BaseModel):
     title = types.StringType()
     event = ModelReferenceType(Event)
+    simple = ModelReferenceType(SimpleModel)
 
 
 class NestedModel(SchematicsModel):

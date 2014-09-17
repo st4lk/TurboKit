@@ -245,11 +245,13 @@ class TestSerializationModelReference(BaseSerializationTest):
         user = yield self._create_user()
         event = Event(dict(title=self.get_random_string(), user=user.pk))
         yield event.save(self.db)
-        record = Record(dict(title=self.get_random_string(), event=event.pk))
+        sm = yield self._create_simple()
+        record = Record(dict(title=self.get_random_string(), event=event.pk,
+            simple=sm))
         yield record.save(self.db)
         record_from_db = yield Record.objects.set_db(self.db)\
-            .prefetch_related('event.user').get({"id": record.pk})
-        self.assertChildRelatedModelFetched(record, record_from_db, event, user)
+            .prefetch_related('event.user', 'simple').get({"id": record.pk})
+        self.assertChildRelatedModelFetched(record, record_from_db, event, user, sm)
 
     def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
             ref_model_field_name, ref_m_class):
@@ -260,28 +262,38 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(json_from_db['id'], str(m_source.pk))
         self.assertEqual(json_from_db[ref_model_field_name], ref_model.to_primitive())
 
-    def assertChildRelatedModelFetched(self, record, record_from_db, event, user):
+    def assertChildRelatedModelFetched(self, record, record_from_db, event,
+            user, sm):
         self.assertTrue(isinstance(record_from_db.event, Event))
         self.assertEqual(record_from_db.event.pk, event.pk)
         self.assertTrue(isinstance(record_from_db.event.user, User))
         self.assertEqual(record_from_db.event.user.pk, user.pk)
+        self.assertTrue(isinstance(record_from_db.simple, SimpleModel))
+        self.assertEqual(record_from_db.simple.pk, sm.pk)
         json_from_db = record_from_db.to_primitive()
         self.assertEqual(json_from_db['id'], str(record.pk))
         self.assertEqual(json_from_db['event']['id'], str(event.pk))
+        self.assertEqual(json_from_db['simple']['id'], str(sm.pk))
         self.assertEqual(json_from_db['event']['user']['id'], str(user.pk))
 
     @gen.coroutine
     def _create_user(self):
         um = User(dict(name=self.get_random_string(), age=randint(20, 50)))
+        um.validate()
         yield um.save(self.db)
         raise gen.Return(um)
 
     @gen.coroutine
-    def _create_model_with_ref_model(self):
+    def _create_simple(self):
         sm = SimpleModel(dict(title=self.get_random_string(),
             secret=self.get_random_string()))
         sm.validate()
         yield sm.save(self.db)
+        raise gen.Return(sm)
+
+    @gen.coroutine
+    def _create_model_with_ref_model(self):
+        sm = yield self._create_simple()
         um = yield self._create_user()
         m = self.model(self.json_data)
         m.type_ref_simplemodel = sm
