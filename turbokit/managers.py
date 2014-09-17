@@ -6,45 +6,31 @@ import logging
 from bson.objectid import ObjectId
 from schematics.models import ModelMeta
 from tornado import gen
-from .cursors import AsyncManagerCursor
-from .customtypes import ModelReferenceType
+from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 
 l = logging.getLogger(__name__)
 
 
-class AsyncManager(object):
+class AsyncManager(PrefetchRelatedMixin):
 
-    def __init__(self, cls, collection, db=None, prefetch_related=None):
+    def __init__(self, cls, collection, db=None, **kwargs):
+        super(AsyncManager, self).__init__(cls, collection, db=db, **kwargs)
         self.collection = collection
         self.cls = cls
         self.db = db
-        self._prefetch_related = set(prefetch_related) if prefetch_related else set()
 
     @gen.coroutine
     def get(self, query=None, callback=None):
-        # TODO: add reconnects
-
+        # TODO: add reconnects here and in other methods
+        # TODO: process 'id' also in filter
         if 'id' in query:
             _id = query.pop('id')
             query['_id'] = ObjectId(_id) if not isinstance(_id, ObjectId) else _id
         response = yield self.db[self.collection].find_one(query)
         m = self.cls(response)
 
-        for pr in self._prefetch_related:
-            field = m._fields.get(pr, None)
-            if field:
-                if isinstance(field, ModelReferenceType):
-                    pr_data = yield self.db[field.model_class.MONGO_COLLECTION]\
-                        .find_one({"_id": m[pr]})
-                    setattr(m, pr, field.model_class(pr_data))
-                else:
-                    l.warning("prefetch_related field must be instance of ModelReferenceType, "
-                        "got {0}, class: {1}"
-                        .format(field.__class__.__name__, m.__class__.__name__))
-            else:
-                l.warning("Unknown field '{0}' in '{1}.prefetch_related'"
-                    .format(pr, m.__class__.__name__))
-        raise gen.Return(m)
+        results_with_related = yield self.fetch_related_objects([m])
+        raise gen.Return(results_with_related[0])
 
     def set_db(self, db):
         """
