@@ -242,16 +242,25 @@ class TestSerializationModelReference(BaseSerializationTest):
 
     @gen_test
     def test_prefetch_related_get_child_fields(self):
-        user = yield self._create_user()
-        event = Event(dict(title=self.get_random_string(), user=user.pk))
-        yield event.save(self.db)
-        sm = yield self._create_simple()
-        record = Record(dict(title=self.get_random_string(), event=event.pk,
-            simple=sm))
-        yield record.save(self.db)
+        record, sm, event, user = yield self._create_record()
         record_from_db = yield Record.objects.set_db(self.db)\
             .prefetch_related('event.user', 'simple').get({"id": record.pk})
         self.assertChildRelatedModelFetched(record, record_from_db, event, user, sm)
+
+    @gen_test
+    def test_prefetch_related_all_child_fields(self):
+        data_list = []
+        for i in range(3):
+            record, sm, event, user = yield self._create_record()
+            data_list.append((record, sm, event, user))
+        records_from_db = yield Record.objects.set_db(self.db)\
+            .prefetch_related('event.user', 'simple').all()
+        for data, record_from_db in zip(
+                sorted(data_list, key=lambda x: x[0].pk),
+                sorted(records_from_db, key=lambda x: x.pk)):
+            record, sm, event, user = data
+            self.assertEqual(record.pk, record_from_db.pk)
+            self.assertChildRelatedModelFetched(record, record_from_db, event, user, sm)
 
     def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
             ref_model_field_name, ref_m_class):
@@ -275,6 +284,17 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(json_from_db['event']['id'], str(event.pk))
         self.assertEqual(json_from_db['simple']['id'], str(sm.pk))
         self.assertEqual(json_from_db['event']['user']['id'], str(user.pk))
+
+    @gen.coroutine
+    def _create_record(self):
+        user = yield self._create_user()
+        event = Event(dict(title=self.get_random_string(), user=user.pk))
+        yield event.save(self.db)
+        sm = yield self._create_simple()
+        record = Record(dict(title=self.get_random_string(), event=event.pk,
+            simple=sm))
+        yield record.save(self.db)
+        raise gen.Return((record, sm, event, user))
 
     @gen.coroutine
     def _create_user(self):
