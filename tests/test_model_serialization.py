@@ -262,6 +262,23 @@ class TestSerializationModelReference(BaseSerializationTest):
             self.assertEqual(record.pk, record_from_db.pk)
             self.assertChildRelatedModelFetched(record, record_from_db, event, user, sm)
 
+    @gen_test
+    def test_prefetch_related_filter_child_fields(self):
+        data_list = []
+        for i in range(5):
+            record, sm, event, user = yield self._create_record(event_title=str(i))
+            data_list.append((record, sm, event, user))
+        records_from_db = yield Record.objects.set_db(self.db)\
+            .filter({"title": {"$lte": "2"}})\
+            .prefetch_related('event.user', 'simple').all()
+        self.assertEqual(len(records_from_db), 3)
+        for data, record_from_db in zip(
+                sorted(data_list, key=lambda x: x[0].pk),
+                sorted(records_from_db, key=lambda x: x.pk)):
+            record, sm, event, user = data
+            self.assertEqual(record.pk, record_from_db.pk)
+            self.assertChildRelatedModelFetched(record, record_from_db, event, user, sm)
+
     def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
             ref_model_field_name, ref_m_class):
         ref_model_field = getattr(m_from_db, ref_model_field_name)
@@ -286,13 +303,13 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(json_from_db['event']['user']['id'], str(user.pk))
 
     @gen.coroutine
-    def _create_record(self):
+    def _create_record(self, event_title=None):
+        event_title = event_title or self.get_random_string()
         user = yield self._create_user()
         event = Event(dict(title=self.get_random_string(), user=user.pk))
         yield event.save(self.db)
         sm = yield self._create_simple()
-        record = Record(dict(title=self.get_random_string(), event=event.pk,
-            simple=sm))
+        record = Record(dict(title=event_title, event=event.pk, simple=sm))
         yield record.save(self.db)
         raise gen.Return((record, sm, event, user))
 
