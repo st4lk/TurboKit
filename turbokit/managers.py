@@ -58,7 +58,8 @@ class AsyncManager(object):
 
     def filter(self, query):
         cursor = self.db[self.collection].find(query)
-        return AsyncManagerCursor(self.cls, cursor)
+        return AsyncManagerCursor(self.cls, cursor, self.db,
+            prefetch_related=self._prefetch_related)
 
     @gen.coroutine
     def all(self):

@@ -213,6 +213,31 @@ class TestSerializationModelReference(BaseSerializationTest):
             self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
             self.assertEqual(m_from_db.to_mongo()['type_ref_usermodel'], um.pk)
 
+    @gen_test
+    def test_prefetch_related_filter_root_fields(self):
+        created_models = yield self._create_models()
+        for i, cm in enumerate(created_models, start=1):
+            cm[0].type_int = i
+            yield cm[0].save(self.db)
+        model_qs = self.model.objects.set_db(self.db).filter({"type_int": {"$lte": 2}})
+        # check two reference field
+        mdls_from_db = yield model_qs.prefetch_related(
+            'type_ref_simplemodel', 'type_ref_usermodel').all()
+        self.assertEqual(len(mdls_from_db), 2)
+        for m_created, m_from_db in zip(
+                sorted(created_models[:2], key=lambda x: x[0].pk),
+                sorted(mdls_from_db, key=lambda x: x.pk)):
+            m = m_created[0]
+            sm = m_created[1]
+            um = m_created[2]
+            self.assertRelatedModelFetched(m, m_from_db, sm, 'type_ref_simplemodel',
+                SimpleModel)
+            self.assertRelatedModelFetched(m, m_from_db, um, 'type_ref_usermodel',
+                UserModel)
+            self.assertEqual(m.pk, m_from_db.pk)
+            self.assertEqual(m_from_db.to_mongo()['type_ref_simplemodel'], sm.pk)
+            self.assertEqual(m_from_db.to_mongo()['type_ref_usermodel'], um.pk)
+
     def assertRelatedModelFetched(self, m_source, m_from_db, ref_model,
             ref_model_field_name, ref_m_class):
         ref_model_field = getattr(m_from_db, ref_model_field_name)

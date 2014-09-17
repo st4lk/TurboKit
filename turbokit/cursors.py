@@ -34,6 +34,10 @@ class AsyncManagerCursor(object):
         self.cursor = self.cursor.limit(*args, **kwargs)
         return self
 
+    def prefetch_related(self, *args):
+        self._prefetch_related |= set(args)
+        return self
+
     @gen.coroutine
     def __getitem__(self, index, *args, **kwargs):
         result = None
