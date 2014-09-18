@@ -10,7 +10,7 @@ from tornado import gen
 from example_app.app import AppODM
 from schematics import types
 from schematics.types import compound
-from example_app.models import SimpleModel, User
+from example_app.models import SimpleModel, User, Event, Record
 
 
 class BaseTest(AsyncHTTPTestCase):
@@ -35,7 +35,7 @@ class BaseTest(AsyncHTTPTestCase):
         return self._app.settings['mongo_client']
 
     @property
-    def default_db(self):
+    def db(self):
         return self.mongo_client[self.DATABASES[0]]
 
     def db_clear(self):
@@ -57,7 +57,6 @@ class BaseSerializationTest(BaseTest):
 
     def setUp(self):
         super(BaseSerializationTest, self).setUp()
-        self.db = self.default_db
         self.model = self.MODEL_CLASS
         m_temp = self.model()
         self.json_data = self._get_mocked_data(m_temp)
@@ -120,3 +119,21 @@ class BaseSerializationTest(BaseTest):
         sm.validate()
         yield sm.save(self.db)
         raise gen.Return(sm)
+
+    @gen.coroutine
+    def _create_event(self, user=None):
+        if user is None:
+            user = yield self._create_user()
+        event = Event(dict(title=self.get_random_string(), user=user.pk))
+        yield event.save(self.db)
+        raise gen.Return(event)
+
+    @gen.coroutine
+    def _create_record(self, event_title=None):
+        event_title = event_title or self.get_random_string()
+        user = yield self._create_user()
+        event = yield self._create_event(user)
+        sm = yield self._create_simple()
+        record = Record(dict(title=event_title, event=event.pk, simple=sm))
+        yield record.save(self.db)
+        raise gen.Return((record, sm, event, user))

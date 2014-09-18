@@ -12,17 +12,15 @@ class TestDbOperations(BaseTest):
     def test_save_and_get(self):
         secret = 'abbcc123'
         m = SimpleModel({"title": "Test model", "secret": secret})
-        db = self.default_db
-        yield m.save(db)
-        m_from_db = yield SimpleModel.objects.set_db(db).get({"title": "Test model"})
+        yield m.save(self.db)
+        m_from_db = yield SimpleModel.objects.set_db(self.db).get({"title": "Test model"})
         self.assertEqual(m.secret, m_from_db.secret)
 
     @gen_test
     def test_all(self):
-        db = self.default_db
-        models = yield self._create_models(db)
+        models = yield self._create_models(self.db)
         model_secrets = set(map(lambda x: x.secret, models))
-        result = yield SimpleModel.objects.set_db(db).all()
+        result = yield SimpleModel.objects.set_db(self.db).all()
         model_db_secrets = set()
         for m in result:
             model_db_secrets.add(m.secret)
@@ -30,40 +28,36 @@ class TestDbOperations(BaseTest):
 
     @gen_test
     def test_filter(self):
-        db = self.default_db
-        yield self._create_models(db)
+        yield self._create_models(self.db)
         titles = ["1", "2"]
-        result = yield SimpleModel.objects.set_db(db).filter(
+        result = yield SimpleModel.objects.set_db(self.db).filter(
             {"title": {"$in": titles}}).all()
         self.assertEqual(set(titles), set(map(lambda x: x.title, result)))
 
     @gen_test
     def test_sort(self):
-        db = self.default_db
-        models = yield self._create_models(db, count=9)
-        result = yield SimpleModel.objects.set_db(db).filter({})\
+        models = yield self._create_models(self.db, count=9)
+        result = yield SimpleModel.objects.set_db(self.db).filter({})\
             .sort([("title", pymongo.DESCENDING), ("secret", pymongo.DESCENDING)]).all()
         for db_model, model in zip(result, sorted(models, key=lambda x: (-int(x.title), -int(x.secret)))):
             self.assertEqual(db_model, model)
 
     @gen_test
     def test_skip_limit(self):
-        db = self.default_db
-        models = yield self._create_models(db, count=9)
-        result = yield SimpleModel.objects.set_db(db).filter({})\
+        models = yield self._create_models(self.db, count=9)
+        result = yield SimpleModel.objects.set_db(self.db).filter({})\
             .sort("secret", pymongo.ASCENDING).skip(2).limit(2).all()
         for db_model, model in zip(result, sorted(models, key=lambda x: x.secret)[2:4]):
             self.assertEqual(db_model, model)
 
     @gen_test
     def test_index_slice(self):
-        db = self.default_db
-        models = yield self._create_models(db, count=9)
-        result = yield SimpleModel.objects.set_db(db).filter({})\
+        models = yield self._create_models(self.db, count=9)
+        result = yield SimpleModel.objects.set_db(self.db).filter({})\
             .sort("secret", pymongo.ASCENDING)[2:4]
         for db_model, model in zip(result, sorted(models, key=lambda x: x.secret)[2:4]):
             self.assertEqual(db_model, model)
-        result = yield SimpleModel.objects.set_db(db).filter({})\
+        result = yield SimpleModel.objects.set_db(self.db).filter({})\
             .sort("secret", pymongo.ASCENDING)[2]
         self.assertEqual(result, sorted(models, key=lambda x: x.secret)[2])
 

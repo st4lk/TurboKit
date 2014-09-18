@@ -17,6 +17,18 @@ class ObjectIdType(SchematicsObjectIdType):
         return value
 
 
+class ObjectIdWithLen(ObjectId):
+    def __len__(self):
+        """
+        According to implementation of DictType and ListType, if field
+        has `export_loop` method, then it must be able to process `len()`.
+        Without it, such construction will not work properly:
+        compound.ListType(ModelReferenceType, compound_field=SomeModel)
+
+        """
+        return 1
+
+
 class ModelReferenceType(ObjectIdType):
 
     def __init__(self, field, **kwargs):
@@ -45,7 +57,7 @@ class ModelReferenceType(ObjectIdType):
         # TODO: currently use SchematicsModel to avoid cycle imports
         if isinstance(value, SchematicsModel):
             value = value.pk
-        return super(ModelReferenceType, self).to_mongo(value, context=context)
+        return ObjectIdWithLen(value)
 
     def to_native(self, value, context=None):
         if isinstance(value, SchematicsModel):

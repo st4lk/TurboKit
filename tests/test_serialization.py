@@ -244,17 +244,6 @@ class TestSerializationModelReference(BaseSerializationTest):
         self.assertEqual(json_from_db['event']['user']['id'], str(user.pk))
 
     @gen.coroutine
-    def _create_record(self, event_title=None):
-        event_title = event_title or self.get_random_string()
-        user = yield self._create_user()
-        event = Event(dict(title=self.get_random_string(), user=user.pk))
-        yield event.save(self.db)
-        sm = yield self._create_simple()
-        record = Record(dict(title=event_title, event=event.pk, simple=sm))
-        yield record.save(self.db)
-        raise gen.Return((record, sm, event, user))
-
-    @gen.coroutine
     def _create_model_with_ref_model(self):
         sm = yield self._create_simple()
         um = yield self._create_user()
@@ -266,7 +255,7 @@ class TestSerializationModelReference(BaseSerializationTest):
         raise gen.Return((m, sm, um))
 
     @gen.coroutine
-    def _create_models(self, count=5):
+    def _create_models(self, amount=5):
         results = []
         for i in range(5):
             m, sm, um = yield self._create_model_with_ref_model()
