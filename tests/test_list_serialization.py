@@ -22,8 +22,25 @@ class TestSerializationReferenceList(BaseSerializationTest):
             data = yield self._create_recordseires()
             data_list.append(data)
         rss_from_db = yield self.model.objects.set_db(self.db).all()
+        self.assertEqual(len(rss_from_db), 3)
         for data, rs_from_db in zip(
                 sorted(data_list, key=lambda x: x[0].pk),
+                sorted(rss_from_db, key=lambda x: x.pk)):
+            rs, simplies, records, main_event = data
+            self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)
+
+    @gen_test
+    def test_filter_ids_only(self):
+        data_list = []
+        for i in range(4):
+            data = yield self._create_recordseires()
+            data_list.append(data)
+        ids = [data_list[1][0].pk, data_list[2][0].pk]
+        rss_from_db = yield self.model.objects.set_db(self.db)\
+            .filter({"id": {"$in": ids}}).all()
+        self.assertEqual(len(rss_from_db), 2)
+        for data, rs_from_db in zip(
+                sorted(data_list[1:3], key=lambda x: x[0].pk),
                 sorted(rss_from_db, key=lambda x: x.pk)):
             rs, simplies, records, main_event = data
             self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)

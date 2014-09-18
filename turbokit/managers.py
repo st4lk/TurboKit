@@ -22,10 +22,7 @@ class AsyncManager(PrefetchRelatedMixin):
     @gen.coroutine
     def get(self, query=None, callback=None):
         # TODO: add reconnects here and in other methods
-        # TODO: process 'id' also in filter
-        if 'id' in query:
-            _id = query.pop('id')
-            query['_id'] = ObjectId(_id) if not isinstance(_id, ObjectId) else _id
+        query = self.process_query(query)
         response = yield self.db[self.collection].find_one(query)
         m = self.cls(response)
 
@@ -44,6 +41,7 @@ class AsyncManager(PrefetchRelatedMixin):
             prefetch_related=self._prefetch_related | set(args))
 
     def filter(self, query):
+        query = self.process_query(query)
         cursor = self.db[self.collection].find(query)
         return AsyncManagerCursor(self.cls, cursor, self.db,
             prefetch_related=self._prefetch_related)
@@ -54,6 +52,15 @@ class AsyncManager(PrefetchRelatedMixin):
         results = yield AsyncManagerCursor(self.cls, cursor, self.db,
             prefetch_related=self._prefetch_related).all()
         raise gen.Return(results)
+
+    def process_query(self, query):
+        if 'id' in query:
+            _id = query.pop('id')
+            if not isinstance(_id, ObjectId) and not isinstance(_id, dict):
+                query['_id'] = ObjectId(_id)
+            else:
+                query['_id'] = _id
+        return query
 
 
 class AsyncManagerMetaClass(ModelMeta):
