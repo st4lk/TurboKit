@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from tornado.testing import gen_test
 from tornado import gen
-from example_app.models import RecordSeries
+from example_app.models import RecordSeries, SimpleModel
 from .base import BaseSerializationTest
 
 
@@ -45,12 +45,31 @@ class TestSerializationReferenceList(BaseSerializationTest):
             rs, simplies, records, main_event = data
             self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)
 
-    def assertRecordSeriasEquals(self, rs_from_db, simplies, records, main_event):
-        for s, s_db_id in zip(simplies, rs_from_db.simplies):
-            self.assertEqual(s.pk, s_db_id)
-        for r, r_db_id in zip(records, rs_from_db.records):
-            self.assertEqual(r.pk, r_db_id)
+    @gen_test
+    def test_prefetch_related_get_list_root_fields(self):
+        rs, simplies, records, main_event = yield self._create_recordseires()
+        rs_from_db = yield self.model.objects.set_db(self.db)\
+            .prefetch_related('simplies').get({"id": rs.pk})
+        self.assertRecordSeriasEquals(rs_from_db, simplies, records,
+            main_event, prefetched_simplies=True)
+
+    def assertRecordSeriasEquals(self, rs_from_db, simplies, records,
+            main_event, prefetched_records=False, prefetched_simplies=False):
+        for s, s_db in zip(simplies, rs_from_db.simplies):
+            if prefetched_simplies:
+                self.assertSimpleEqual(s, s_db)
+            else:
+                self.assertEqual(s.pk, s_db)
+        for r, r_db in zip(records, rs_from_db.records):
+            if prefetched_records:
+                pass
+            else:
+                self.assertEqual(r.pk, r_db)
         self.assertEqual(main_event.pk, rs_from_db.main_event)
+
+    def assertSimpleEqual(self, simple, simple_from_db):
+        self.assertTrue(isinstance(simple_from_db, SimpleModel))
+        self.assertEqual(simple.pk, simple_from_db.pk)
 
     @gen.coroutine
     def _create_recordseires(self, records_count=3, simplies_count=2, commit=True):
