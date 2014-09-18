@@ -13,7 +13,7 @@ class TestSerializationReferenceList(BaseSerializationTest):
         rs, simplies, records, main_event = yield self._create_recordseires(commit=False)
         yield rs.save(self.db)
         rs_from_db = yield self.model.objects.set_db(self.db).get({"id": rs.pk})
-        self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)
+        self.assertRecordSeriesEquals(rs_from_db, simplies, records, main_event)
 
     @gen_test
     def test_all_ids_only(self):
@@ -27,7 +27,7 @@ class TestSerializationReferenceList(BaseSerializationTest):
                 sorted(data_list, key=lambda x: x[0].pk),
                 sorted(rss_from_db, key=lambda x: x.pk)):
             rs, simplies, records, main_event = data
-            self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)
+            self.assertRecordSeriesEquals(rs_from_db, simplies, records, main_event)
 
     @gen_test
     def test_filter_ids_only(self):
@@ -43,17 +43,49 @@ class TestSerializationReferenceList(BaseSerializationTest):
                 sorted(data_list[1:3], key=lambda x: x[0].pk),
                 sorted(rss_from_db, key=lambda x: x.pk)):
             rs, simplies, records, main_event = data
-            self.assertRecordSeriasEquals(rs_from_db, simplies, records, main_event)
+            self.assertRecordSeriesEquals(rs_from_db, simplies, records, main_event)
 
     @gen_test
     def test_prefetch_related_get_list_root_fields(self):
         rs, simplies, records, main_event = yield self._create_recordseires()
         rs_from_db = yield self.model.objects.set_db(self.db)\
             .prefetch_related('simplies').get({"id": rs.pk})
-        self.assertRecordSeriasEquals(rs_from_db, simplies, records,
+        self.assertRecordSeriesEquals(rs_from_db, simplies, records,
             main_event, prefetched_simplies=True)
 
-    def assertRecordSeriasEquals(self, rs_from_db, simplies, records,
+    @gen_test
+    def test_prefetch_related_all_list_root_fields(self):
+        data_list = []
+        for i in range(3):
+            data = yield self._create_recordseires()
+            data_list.append(data)
+        rss_from_db = yield self.model.objects.set_db(self.db)\
+            .prefetch_related('simplies').all()
+        for data, rs_from_db in zip(
+                sorted(data_list, key=lambda x: x[0].pk),
+                sorted(rss_from_db, key=lambda x: x.pk)):
+            rs, simplies, records, main_event = data
+        self.assertRecordSeriesEquals(rs_from_db, simplies, records,
+            main_event, prefetched_simplies=True)
+
+    @gen_test
+    def test_prefetch_related_filter_list_root_fields(self):
+        data_list = []
+        for i in range(4):
+            data = yield self._create_recordseires()
+            data_list.append(data)
+        ids = [data_list[1][0].pk, data_list[2][0].pk]
+        rss_from_db = yield self.model.objects.set_db(self.db)\
+            .prefetch_related('simplies').filter({"id": {"$in": ids}}).all()
+        self.assertEqual(len(rss_from_db), 2)
+        for data, rs_from_db in zip(
+                sorted(data_list[1:3], key=lambda x: x[0].pk),
+                sorted(rss_from_db, key=lambda x: x.pk)):
+            rs, simplies, records, main_event = data
+            self.assertRecordSeriesEquals(rs_from_db, simplies, records,
+                main_event, prefetched_simplies=True)
+
+    def assertRecordSeriesEquals(self, rs_from_db, simplies, records,
             main_event, prefetched_records=False, prefetched_simplies=False):
         for s, s_db in zip(simplies, rs_from_db.simplies):
             if prefetched_simplies:
