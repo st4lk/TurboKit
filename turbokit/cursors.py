@@ -55,6 +55,8 @@ class PrefetchRelatedMixin(object):
                 # fetch child related fields recursively
                 pr_model_list = yield self.fetch_related_objects(pr_model_list,
                     related_fields=set([pr_child_field_names]))
+            #TODO: if change objects_list function argument to objects_dict
+            # maybe we can skip some odd transormations here to dict
             pr_model_dict = dict(map(lambda x: (x.pk, x), pr_model_list))
             for m in objects_list:
                 f_value_was = getattr(m, pr_field_name)
