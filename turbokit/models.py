@@ -194,22 +194,6 @@ class BaseModel(SchematicsModel):
         raise gen.Return(result)
 
     @classmethod
-    @gen.coroutine
-    def aggregate(cls, db, pipe_list, collection=None):
-        """TODO: move to model manager"""
-        c = cls.check_collection(collection)
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].aggregate, pipe_list)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'aggregate')
-                if exceed:
-                    raise e
-            else:
-                raise gen.Return(result)
-
-    @classmethod
     def reconnect_amount(cls):
         return xrange(cls.RECONNECT_TRIES + 1)
 

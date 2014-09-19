@@ -10,7 +10,7 @@ from tornado import gen
 from example_app.app import AppODM
 from schematics import types
 from schematics.types import compound
-from example_app.models import SimpleModel, User, Event, Record
+from example_app.models import SimpleModel, User, Event, Record, RecordSeries
 
 
 class BaseTest(AsyncHTTPTestCase):
@@ -135,3 +135,21 @@ class BaseSerializationTest(BaseTest):
         record = Record(dict(title=event_title, event=event, simple=sm))
         yield record.save(self.db)
         raise gen.Return((record, sm, event, user))
+
+    @gen.coroutine
+    def _create_recordseries(self, records_count=3, simplies_count=2, commit=True):
+        simplies = []
+        records = []
+        for i in range(records_count):
+            record, _, _, _ = yield self._create_record()
+            records.append(record)
+        for i in range(simplies_count):
+            sm = yield self._create_simple()
+            simplies.append(sm)
+        main_event = yield self._create_event()
+        rs = RecordSeries(dict(title="rs", main_event=main_event,
+            simplies=map(lambda x: x.pk, simplies),
+            records=map(lambda x: x.pk, records)))
+        if commit:
+            yield rs.save(self.db)
+        raise gen.Return((rs, simplies, records, main_event))

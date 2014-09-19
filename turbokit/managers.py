@@ -8,6 +8,7 @@ from schematics.models import ModelMeta
 from tornado import gen
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 from schematics.models import Model as SchematicsModel
+from pymongo.errors import OperationFailure
 
 l = logging.getLogger(__name__)
 
@@ -20,6 +21,13 @@ class AsyncManager(PrefetchRelatedMixin):
         self.cls = cls
         self.db = db
 
+    def set_db(self, db):
+        """
+        Create another instance of AsyncManager, so database won't be shared
+        between all models. It is thread safe.
+        """
+        return AsyncManager(self.cls, self.collection, db)
+
     @gen.coroutine
     def get(self, query=None, callback=None):
         # TODO: add reconnects here and in other methods
@@ -30,12 +38,25 @@ class AsyncManager(PrefetchRelatedMixin):
         results_with_related = yield self.fetch_related_objects([m])
         raise gen.Return(results_with_related[0])
 
-    def set_db(self, db):
+    @gen.coroutine
+    def all(self):
+        cursor = self.db[self.collection].find({})
+        results = yield AsyncManagerCursor(self.cls, cursor, self.db,
+            prefetch_related=self._prefetch_related).all()
+        raise gen.Return(results)
+
+    @gen.coroutine
+    def aggregate(self, pipeline, **kwargs):
         """
-        Create another instance of AsyncManager, so database won't be shared
-        between all models. It is thread safe.
+        With server version >= 2.5.1, pass cursor={} to retrieve unlimited
+        aggregation results with a CommandCursor
         """
-        return AsyncManager(self.cls, self.collection, db)
+        result = yield self.db[self.collection].aggregate(pipeline, **kwargs)
+        if 'cursor' not in kwargs:
+            if result['ok'] != 1:
+                raise OperationFailure(result, code=result['ok'])
+            result = result['result']
+        raise gen.Return(result)
 
     def prefetch_related(self, *args):
         return AsyncManager(self.cls, self.collection, self.db,
@@ -46,13 +67,6 @@ class AsyncManager(PrefetchRelatedMixin):
         cursor = self.db[self.collection].find(query)
         return AsyncManagerCursor(self.cls, cursor, self.db,
             prefetch_related=self._prefetch_related)
-
-    @gen.coroutine
-    def all(self):
-        cursor = self.db[self.collection].find({})
-        results = yield AsyncManagerCursor(self.cls, cursor, self.db,
-            prefetch_related=self._prefetch_related).all()
-        raise gen.Return(results)
 
     def process_query(self, query):
         if 'id' in query:
