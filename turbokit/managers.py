@@ -7,6 +7,7 @@ from bson.objectid import ObjectId
 from schematics.models import ModelMeta
 from tornado import gen
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
+from schematics.models import Model as SchematicsModel
 
 l = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ class AsyncManager(PrefetchRelatedMixin):
     def process_query(self, query):
         if 'id' in query:
             _id = query.pop('id')
+            if isinstance(_id, SchematicsModel):
+                _id = _id.pk
             if not isinstance(_id, ObjectId) and not isinstance(_id, dict):
                 query['_id'] = ObjectId(_id)
             else:

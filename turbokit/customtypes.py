@@ -2,6 +2,7 @@
 from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
 from schematics.models import Model as SchematicsModel
 from schematics.transforms import export_loop
+from schematics.types import TypeMeta
 from bson.objectid import ObjectId
 
 
@@ -29,7 +30,26 @@ class ObjectIdWithLen(ObjectId):
         return 1
 
 
+def filter_validate_id(partial_func):
+    return 'validate_id' != partial_func.func_name
+
+
+class ModelReferenceMeta(TypeMeta):
+    def __new__(cls, name, bases, attrs):
+        """
+        Remove `ObjectIdType.validate_id` from validators.
+        Without it, this method will be called, even if we redefine it in
+        child class.
+        """
+        for b in bases:
+            if hasattr(b, '_validators'):
+                b._validators = filter(lambda x: 'validate_id' != x.func_name,
+                    b._validators)
+        return super(ModelReferenceMeta, cls).__new__(cls, name, bases, attrs)
+
+
 class ModelReferenceType(ObjectIdType):
+    __metaclass__ = ModelReferenceMeta
 
     def __init__(self, field, **kwargs):
         """
@@ -46,12 +66,17 @@ class ModelReferenceType(ObjectIdType):
             # TODO
             model_instance.validate()
             return model_instance
-
         super(ModelReferenceType, self).__init__(
             validators=validators, **kwargs)
 
         # super(ModelReferenceType, self).__init__(
         #     validators=[validate_model] + validators, **kwargs)
+
+    def validate_id(self, value):
+        if isinstance(value, SchematicsModel):
+            # TODO: validate full model in separate method, validate_model
+            value = value.pk
+        return super(ModelReferenceType, self).validate_id(value)
 
     def to_mongo(self, value, context=None):
         # TODO: currently use SchematicsModel to avoid cycle imports
@@ -61,7 +86,7 @@ class ModelReferenceType(ObjectIdType):
 
     def to_native(self, value, context=None):
         if isinstance(value, SchematicsModel):
-            value = value.pk
+            return value
         return super(ModelReferenceType, self).to_native(value, context=context)
 
     def export_loop(self, model_instance, field_converter,

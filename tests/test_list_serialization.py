@@ -88,7 +88,6 @@ class TestSerializationReferenceList(BaseSerializationTest):
     @gen_test
     def test_prefetch_related_get_list_child_fields(self):
         rs, simplies, records, main_event = yield self._create_recordseries()
-        main_event_user = yield User.objects.set_db(self.db).get({"id": main_event.user})
         # test one child field from list
         rs_from_db = yield self.model.objects.set_db(self.db)\
             .prefetch_related('records.event').get({"id": rs.pk})
@@ -103,16 +102,14 @@ class TestSerializationReferenceList(BaseSerializationTest):
         rs_from_db = yield self.model.objects.set_db(self.db)\
             .prefetch_related('records.event.user', 'main_event').get({"id": rs.pk})
         self.assertRecordSeriesEquals(rs_from_db, simplies, records,
-            main_event, main_event_user=main_event_user,
-            prefetched_records='records.event.user',
+            main_event, prefetched_records='records.event.user',
             prefetched_main_event='event')
         # test two child fields from list field and one child from non-list field
         rs_from_db = yield self.model.objects.set_db(self.db)\
             .prefetch_related('records.event.user', 'main_event.user')\
             .get({"id": rs.pk})
         self.assertRecordSeriesEquals(rs_from_db, simplies, records,
-            main_event, main_event_user=main_event_user,
-            prefetched_records='records.event.user',
+            main_event, prefetched_records='records.event.user',
             prefetched_main_event='event.user')
         # test two child fields from list field, one child from non-list field
         # and one root from another list field
@@ -120,8 +117,7 @@ class TestSerializationReferenceList(BaseSerializationTest):
             .prefetch_related('records.event.user', 'main_event.user',
                 'simplies').get({"id": rs.pk})
         self.assertRecordSeriesEquals(rs_from_db, simplies, records,
-            main_event, main_event_user=main_event_user,
-            prefetched_records='records.event.user',
+            main_event, prefetched_records='records.event.user',
             prefetched_main_event='event.user', prefetched_simplies=True)
 
     @gen_test
@@ -159,44 +155,46 @@ class TestSerializationReferenceList(BaseSerializationTest):
                 prefetched_simplies=True)
 
     def assertRecordSeriesEquals(self, rs_from_db, simplies, records,
-            main_event, main_event_user=None, prefetched_simplies=False,
+            main_event, prefetched_simplies=False,
             prefetched_records='', prefetched_main_event=''):
-        for s, s_db in zip(simplies, rs_from_db.simplies):
+        json_from_db = rs_from_db.to_primitive()
+        for s, s_db_data in zip(simplies,
+                zip(rs_from_db.simplies, json_from_db['simplies'])):
+            s_db, s_json = s_db_data
             if prefetched_simplies:
                 self.assertSimpleEqual(s, s_db)
             else:
                 self.assertEqual(s.pk, s_db)
         for r, r_db in zip(records, rs_from_db.records):
             if prefetched_records:
-                pass
+                self.assertRecordEqual(r, r_db, prefetched_records)
             else:
                 self.assertEqual(r.pk, r_db)
         if prefetched_main_event:
             self.assertEventEqual(main_event, rs_from_db.main_event,
-                main_event_user, prefetched_main_event)
+                prefetched_main_event)
         else:
             self.assertEqual(main_event.pk, rs_from_db.main_event)
 
     def assertSimpleEqual(self, simple, simple_from_db):
         self.assertTrue(isinstance(simple_from_db, SimpleModel))
-        self.assertEqual(simple.pk, simple_from_db.pk)
+        self.assertEqual(simple, simple_from_db)
 
-    def assertEventEqual(self, event, event_from_db, user, fields):
+    def assertEventEqual(self, event, event_from_db, fields):
         self.assertTrue(isinstance(event_from_db, Event))
         self.assertEqual(event_from_db.pk, event.pk)
         self.assertEqual(event_from_db.title, event.title)
         if 'user' in fields:
             self.assertTrue(isinstance(event_from_db.user, User))
-            self.assertEqual(event_from_db.user.pk, user.pk)
+            self.assertEqual(event_from_db.user, event.user)
         else:
-            self.assertEqual(event_from_db.user, user.pk)
+            self.assertEqual(event_from_db.user, event.user.pk)
 
-    def assertRecordEqual(self, record, record_from_db, main_event_user, fields=''):
+    def assertRecordEqual(self, record, record_from_db, fields=''):
         self.assertTrue(isinstance(record_from_db, Record))
         self.assertEqual(record_from_db.pk, record.pk)
         if 'event' in fields:
-            self.assertEventEqual(record.event, record_from_db.event,
-                main_event_user, fields)
+            self.assertEventEqual(record.event, record_from_db.event, fields)
         else:
             self.assertEqual(record_from_db.event, record.event.pk)
         # TODO: check json

@@ -124,7 +124,8 @@ class BaseSerializationTest(BaseTest):
     def _create_event(self, user=None):
         if user is None:
             user = yield self._create_user()
-        event = Event(dict(title=self.get_random_string(), user=user.pk))
+        event = Event(dict(title=self.get_random_string(), user=user))
+        event.validate()
         yield event.save(self.db)
         raise gen.Return(event)
 
@@ -134,6 +135,6 @@ class BaseSerializationTest(BaseTest):
         user = yield self._create_user()
         event = yield self._create_event(user)
         sm = yield self._create_simple()
-        record = Record(dict(title=event_title, event=event.pk, simple=sm))
+        record = Record(dict(title=event_title, event=event, simple=sm))
         yield record.save(self.db)
         raise gen.Return((record, sm, event, user))
