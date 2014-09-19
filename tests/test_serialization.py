@@ -13,7 +13,6 @@ class TestSerializationCompound(BaseSerializationTest):
     def test_serialize_save(self):
         # create model from json
         m = self.model(self.json_data)
-        m.validate()
         yield m.save(self.db)
         # check, that model from db corresponds to json data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
@@ -46,7 +45,6 @@ class TestSerializationCompound(BaseSerializationTest):
     def test_serialize_update(self):
         # create model from json
         m = self.model(self.json_data)
-        m.validate()
         yield m.save(self.db)
         # update only some fields from model instance
         updated_json = {
@@ -250,7 +248,6 @@ class TestSerializationModelReference(BaseSerializationTest):
         m = self.model(self.json_data)
         m.type_ref_simplemodel = sm
         m.type_ref_usermodel = um
-        m.validate()
         yield m.save(self.db)
         raise gen.Return((m, sm, um))
 

@@ -113,6 +113,7 @@ class BaseModel(SchematicsModel):
             obj = ExampleModel({"first_name": "Vasya"})
             yield obj.save(self.db)
         """
+        self.validate()
         db = db or self.db
         c = self.check_collection(collection)
         data = self.get_data_for_save(ser)

@@ -108,7 +108,6 @@ class BaseSerializationTest(BaseTest):
     @gen.coroutine
     def _create_user(self):
         um = User(dict(name=self.get_random_string(), age=randint(20, 50)))
-        um.validate()
         yield um.save(self.db)
         raise gen.Return(um)
 
@@ -116,7 +115,6 @@ class BaseSerializationTest(BaseTest):
     def _create_simple(self):
         sm = SimpleModel(dict(title=self.get_random_string(),
             secret=self.get_random_string()))
-        sm.validate()
         yield sm.save(self.db)
         raise gen.Return(sm)
 
@@ -125,7 +123,6 @@ class BaseSerializationTest(BaseTest):
         if user is None:
             user = yield self._create_user()
         event = Event(dict(title=self.get_random_string(), user=user))
-        event.validate()
         yield event.save(self.db)
         raise gen.Return(event)
 
