@@ -72,31 +72,6 @@ class BaseModel(SchematicsModel):
         return collection or cls.get_collection()
 
     @classmethod
-    def find_list_len(cls):
-        """Deprecated. Use model manager"""
-        return getattr(cls, 'FIND_LIST_LEN', MAX_FIND_LIST_LEN)
-
-    @classmethod
-    @gen.coroutine
-    def find_one(cls, db, query, collection=None, model=True):
-        """Deprecated. Use model manager"""
-        result = None
-        query = cls.process_query(query)
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(
-                    db[cls.check_collection(collection)].find_one, query)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'find_one')
-                if exceed:
-                    raise e
-            else:
-                if model and result:
-                    result = cls.make_model(result, "find_one", db=db)
-                raise gen.Return(result)
-
-    @classmethod
     @gen.coroutine
     def remove_entries(cls, db, query, collection=None):
         """
@@ -216,63 +191,6 @@ class BaseModel(SchematicsModel):
         """
         result = yield self.__class__.update(db, {"_id": self.pk}, ser, **kwargs)
         raise gen.Return(result)
-
-    @classmethod
-    def get_cursor(cls, db, query, collection=None, fields=None):
-        c = cls.check_collection(collection)
-        query = cls.process_query(query)
-        return db[c].find(query, fields) if fields else db[c].find(query)
-
-    @classmethod
-    @gen.coroutine
-    def find(cls, db, query, fields=None, collection=None, model=True, list_len=None):
-        """
-        Deprecated. Use model manager
-
-        Returns a list of found documents.
-        :arg db: database, returned from MotorClient
-        :arg query: dict of fields to be searched by
-        :arg fields: return only this fields, instead of all
-        :arg model: if True, then construct model instance for each document.
-            Otherwise, just leave them as list of dicts.
-        :arg list_len: list of documents to be returned.
-
-        Example:
-            cursor = ExampleModel.get_cursor(self.db, {"first_name": "Hello"})
-            objects = yield ExampleModel.find(cursor)
-        """
-        cursor = cls.get_cursor(db, query, collection=collection, fields=fields)
-        result = None
-        list_len = list_len or cls.find_list_len() or MAX_FIND_LIST_LEN
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(cursor.to_list, list_len)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i, 'find')
-                if exceed:
-                    raise e
-            else:
-                if model:
-                    field_names_set = set(cls._fields.keys())
-                    for i in xrange(len(result)):
-                        result[i] = cls.make_model(
-                            result[i], "find", field_names_set)
-                raise gen.Return(result)
-
-    @classmethod
-    @gen.coroutine
-    def count(cls, db, query):
-        """Deprecated. Use model manager"""
-        cursor = cls.get_cursor(db, query)
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(cursor.count)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i, 'count')
-                if exceed:
-                    raise e
-            else:
-                raise gen.Return(result)
 
     @classmethod
     @gen.coroutine
