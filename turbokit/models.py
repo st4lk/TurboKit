@@ -7,7 +7,7 @@ from schematics.models import Model as SchematicsModel
 from pymongo.errors import ConnectionFailure
 from .utils import methodize
 from .transforms import to_mongo
-from .customtypes import ObjectIdType
+from .types import ObjectIdType
 from .managers import AsyncManagerMetaClass
 
 l = logging.getLogger(__name__)

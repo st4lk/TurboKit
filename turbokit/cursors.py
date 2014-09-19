@@ -2,7 +2,7 @@
 import logging
 from tornado import gen
 from schematics.types import compound
-from .customtypes import ModelReferenceType
+from .types import ModelReferenceType
 
 l = logging.getLogger(__name__)
 

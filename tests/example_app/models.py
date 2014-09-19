@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from turbokit.models import BaseModel, SchematicsModel
-from turbokit.customtypes import ModelReferenceType
+from turbokit.types import ModelReferenceType
 from schematics import types
 from schematics.types import compound
 
