@@ -224,3 +224,43 @@ class TestSerializationReferenceList(BaseSerializationTest):
             self.assertEqual(record.pk, record_from_db)
             if json_db:
                 self.assertEqual(json_db, str(record.pk))
+
+
+class TestSerializationGenericReferenceList(BaseSerializationTest):
+    MODEL_CLASS = RecordSeries  # TODO
+
+    @gen_test
+    def test_generic_model_save_get_ids_only(self):
+        pass
+
+    @gen_test
+    def test_generic_model_all_ids_only(self):
+        pass
+
+    @gen_test
+    def test_generic_model_filter_ids_only(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_get_list_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_all_list_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_filter_list_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_get_list_child_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_all_list_child_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_filter_list_child_fields(self):
+        pass

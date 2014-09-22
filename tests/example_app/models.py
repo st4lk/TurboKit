@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from turbokit.models import BaseModel, SchematicsModel
-from turbokit.types import ModelReferenceType
+from turbokit.types import ModelReferenceType, GenericModelReferenceType
 from schematics import types
 from schematics.types import compound
 
@@ -45,6 +45,11 @@ class NestedModel(SchematicsModel):
 
     class Options:
         serialize_when_none = False
+
+
+class Transaction(BaseModel):
+    title = types.StringType()
+    item = GenericModelReferenceType()
 
 
 class SchematicsFieldsModel(BaseModel):

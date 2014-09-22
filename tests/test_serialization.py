@@ -258,3 +258,35 @@ class TestSerializationModelReference(BaseSerializationTest):
             m, sm, um = yield self._create_model_with_ref_model()
             results.append((m, sm, um))
         raise gen.Return(results)
+
+
+class TestSerializationGenericModelReference(BaseSerializationTest):
+    MODEL_CLASS = SchematicsFieldsModel  # TODO
+
+    @gen_test
+    def test_generic_model__serialize_save(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_get_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_all_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_filter_root_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_get_child_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_all_child_fields(self):
+        pass
+
+    @gen_test
+    def test_generic_model_prefetch_related_filter_child_fields(self):
+        pass

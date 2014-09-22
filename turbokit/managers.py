@@ -6,9 +6,10 @@ import logging
 from bson.objectid import ObjectId
 from schematics.models import ModelMeta
 from tornado import gen
-from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 from schematics.models import Model as SchematicsModel
 from pymongo.errors import OperationFailure
+from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
+from .utils import _document_registry
 
 l = logging.getLogger(__name__)
 
@@ -104,5 +105,9 @@ class AsyncManagerMetaClass(ModelMeta):
                 setattr(new_class, obj_name, obj)
             manager = AsyncManager(new_class, collection)
             setattr(new_class, "objects", manager)
+
+            cls_key = ".".join((new_class.__module__, new_class.__name__))
+            _document_registry[cls_key] = new_class
+            new_class._cls_key = cls_key
 
             return new_class

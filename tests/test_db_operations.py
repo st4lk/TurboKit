@@ -3,7 +3,7 @@ import pymongo
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
-from example_app.models import SimpleModel
+from example_app.models import SimpleModel, Transaction, User
 
 
 class TestDbOperations(BaseTest):
@@ -69,3 +69,34 @@ class TestDbOperations(BaseTest):
             yield m.save(db)
             models.append(m)
         raise gen.Return(models)
+
+
+class TestGenericModelDbOperations(BaseTest):
+    @gen_test
+    def test_generic_model_save_and_get(self):
+        # store SimpleModel in generic ref field
+        sm = SimpleModel({"title": "Test model", "secret": 'abbcc123'})
+        yield sm.save(self.db)
+        t = Transaction(dict(title="yandex", item=sm))
+        yield t.save(self.db)
+        t_from_db = yield Transaction.objects.set_db(self.db).get({"id": t.pk})
+        self.assertEqual(t_from_db.item, sm.pk)
+        # try to save object, got from database
+        t_from_db.title = "webmoney"
+        yield t_from_db.save(self.db)
+        t_from_db_1 = yield Transaction.objects.set_db(self.db).get({"id": t.pk})
+        self.assertEqual(t_from_db_1.title, "webmoney")
+        self.assertEqual(t_from_db_1.item, sm.pk)
+        # replace value of generic ref field with another model class
+        um = User(dict(name="Igor", age=15))
+        yield um.save(self.db)
+        t_from_db_1.item = um
+        yield t_from_db_1.save(self.db)
+        t_from_db_2 = yield Transaction.objects.set_db(self.db).get({"id": t.pk})
+        self.assertEqual(t_from_db_2.pk, t.pk)
+        self.assertEqual(t_from_db_2.item, um.pk)
+
+    @gen_test
+    def test_generic_all(self):
+        # TODO
+        pass
