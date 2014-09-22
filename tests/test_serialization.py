@@ -2,8 +2,8 @@
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record)
-from .base import BaseSerializationTest
+    Event, Record, Transaction)
+from .base import BaseSerializationTest, BaseTest
 
 
 class TestSerializationCompound(BaseSerializationTest):
@@ -260,11 +260,12 @@ class TestSerializationModelReference(BaseSerializationTest):
         raise gen.Return(results)
 
 
-class TestSerializationGenericModelReference(BaseSerializationTest):
-    MODEL_CLASS = SchematicsFieldsModel  # TODO
+class TestSerializationGenericModelReference(BaseTest):
+    # TODO
+    MODEL_CLASS = Transaction
 
     @gen_test
-    def test_generic_model__serialize_save(self):
+    def test_generic_model_serialize_save(self):
         pass
 
     @gen_test

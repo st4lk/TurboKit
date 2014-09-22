@@ -109,6 +109,9 @@ class ModelReferenceType(ObjectIdType):
 
 
 class GenericModelReferenceType(ObjectIdType):
+    #TODO: implemente functionality, covered by
+    # TestSerializationGenericReferenceList and TestSerializationGenericModelReference
+
     __metaclass__ = ModelReferenceMeta
 
     MESSAGES = {
@@ -126,7 +129,6 @@ class GenericModelReferenceType(ObjectIdType):
         """
         Currently only already saved model objects can be saved as generic
         relation.
-        TODO: if model is provided without id, save it and get generated id
         """
         base_model = get_base_model()
         _id = None
