@@ -98,5 +98,23 @@ class TestGenericModelDbOperations(BaseTest):
 
     @gen_test
     def test_generic_all(self):
-        # TODO
-        pass
+        # create models
+        sm = SimpleModel({"title": "Test model", "secret": 'abbcc123'})
+        yield sm.save(self.db)
+        t1 = Transaction(dict(title="yandex", item=sm))
+        yield t1.save(self.db)
+        um = User(dict(name="Igor", age=15))
+        yield um.save(self.db)
+        t2 = Transaction(dict(title="webmoney", item=um))
+        yield t2.save(self.db)
+        # get them from db
+        tns = yield Transaction.objects.set_db(self.db).all()
+        tns.sort(key=lambda x: x.title)
+        t1_db = tns[1]
+        t2_db = tns[0]
+        self.assertEqual(t1_db.title, t1.title)
+        self.assertEqual(t1_db.item, sm.pk)
+        self.assertEqual(t2_db.title, t2.title)
+        self.assertEqual(t2_db.item, um.pk)
+        # it is possible to save object, got from database
+        yield t1_db.save(self.db)
