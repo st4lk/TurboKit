@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import pymongo
+from datetime import datetime, timedelta
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SimpleModel, Transaction, User, Page,
-    NestedModel, Brand)
+    NestedModel, Brand, Plan)
 
 
 class TestDbOperations(BaseTest):
@@ -61,6 +62,21 @@ class TestDbOperations(BaseTest):
         result = yield SimpleModel.objects.set_db(self.db).filter({})\
             .sort("secret", pymongo.ASCENDING)[2]
         self.assertEqual(result, sorted(models, key=lambda x: x.secret)[2])
+
+    @gen_test
+    def test_serializable_fields(self):
+        plan = Plan()
+        self.assertTrue(plan.is_expired)
+        yield plan.save(self.db)
+        plan_db_raw = yield Plan.objects.set_db(self.db).get({'id': plan.pk},
+            return_raw=True)
+        self.assertFalse('is_expired' in plan_db_raw)
+        plan_db = yield Plan.objects.set_db(self.db).get({'id': plan.pk})
+        plan_db.ends_at = datetime.now() + timedelta(days=1)
+        self.assertFalse(plan_db.is_expired)
+        plan_db.save(self.db)
+        plan_db = yield Plan.objects.set_db(self.db).get({'id': plan.pk})
+        self.assertFalse(plan_db.is_expired)
 
     @gen.coroutine
     def _create_models(self, db, count=5):

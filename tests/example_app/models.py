@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from turbokit.models import BaseModel, SimpleMongoModel
 from turbokit.types import ModelReferenceType, GenericModelReferenceType, DynamicType
 from schematics import types
 from schematics.types import compound
+from schematics.types.serializable import serializable
 
 
 class SimpleModel(BaseModel):
@@ -60,6 +62,15 @@ class Page(BaseModel):
 class Brand(BaseModel):
     title = types.StringType()
     menu = compound.ListType(DynamicType)
+
+
+class Plan(BaseModel):
+    title = types.StringType(default='default')
+    ends_at = types.DateTimeType(default=datetime.now)
+
+    @serializable
+    def is_expired(self):
+        return self.ends_at < datetime.now()
 
 
 class SchematicsFieldsModel(BaseModel):

@@ -30,14 +30,17 @@ class AsyncManager(PrefetchRelatedMixin):
         return AsyncManager(self.cls, self.collection, db)
 
     @gen.coroutine
-    def get(self, query=None, callback=None):
+    def get(self, query=None, return_raw=False, callback=None):
         # TODO: add reconnects here and in other methods
         query = self.process_query(query)
         response = yield self.db[self.collection].find_one(query)
-        m = self.cls(response)
-
-        results_with_related = yield self.fetch_related_objects([m])
-        raise gen.Return(results_with_related[0])
+        if return_raw:
+            result = response
+        else:
+            m = self.cls(response)
+            results_with_related = yield self.fetch_related_objects([m])
+            result = results_with_related[0]
+        raise gen.Return(result)
 
     @gen.coroutine
     def all(self):

@@ -300,31 +300,3 @@ class BaseModel(MongoDBMixin, SchematicsModel):
         if flatten_data:
             data = cls._flatten_data(data)
         return data
-
-    @classmethod
-    def make_model(cls, data, method_name, field_names_set=None, db=None):
-        """
-        Create model instance from data (dict).
-        """
-        if field_names_set is None:
-            field_names_set = set(cls._fields.keys())
-        else:
-            if not isinstance(field_names_set, set):
-                field_names_set = set(field_names_set)
-        new_keys = set(data.keys()) - field_names_set
-        if new_keys:
-            l.warning(
-                "'{0}' has unhandled fields in DB: "
-                "'{1}'. {2} returned data: '{3}'"
-                .format(cls.__name__, new_keys, data, method_name))
-            for new_key in new_keys:
-                del data[new_key]
-        return cls(raw_data=data, db=db)
-
-    def serialize(self, role=None, context=None, expand_related=False):
-        """
-        Accepts additional parameter expand_related.
-        For base documentation look SchematicsModel.serialize
-        """
-        return self.to_primitive(role=role, context=context,
-            expand_related=expand_related)
