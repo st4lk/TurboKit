@@ -4,7 +4,7 @@ from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SimpleModel, Transaction, User, Page,
-    NestedModel)
+    NestedModel, Brand)
 
 
 class TestDbOperations(BaseTest):
@@ -139,9 +139,43 @@ class TestDymanicDbOperations(BaseTest):
         yield p.save(self.db)
         p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
         self.assertEqual(p.content, p_from_db.content)
-        # store embeded model
+        # store embedded model
         nm = NestedModel(dict(type_string="good", type_int=15))
         p.content = nm
         yield p.save(self.db)
         p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
         self.assertEqual(nm, p_from_db.content)
+
+    @gen_test
+    def test_dynamic_list_save_and_get(self):
+        # test primitive
+        menu = [1, 'one', {"two": "pk"}]
+        b = Brand(dict(title="main", menu=menu))
+        yield b.save(self.db)
+        b_from_db = yield Brand.objects.set_db(self.db).get({'id': b.pk})
+        self.assertEqual(b_from_db.menu, menu)
+        # test embedded model
+        nm = NestedModel(dict(type_string="good", type_int=15))
+        menu.append(nm)
+        b.menu = menu
+        yield b.save(self.db)
+        b_from_db = yield Brand.objects.set_db(self.db).get({'id': b.pk})
+        self.assertEqual(b_from_db.menu, menu)
+
+    @gen_test
+    def test_dynamic_list_all(self):
+        # test primitive
+        menu1 = [1, 'one', {"two": "pk"}]
+        b1 = Brand(dict(title="main", menu=menu1))
+        yield b1.save(self.db)
+        nm1 = NestedModel(dict(type_string="good", type_int=15))
+        nm2 = NestedModel(dict(type_string="bad", type_int=42))
+        menu2 = list(menu1) + [nm1, nm2]
+        b2 = Brand(dict(title="zoop", menu=menu2))
+        yield b2.save(self.db)
+        bs_from_db = yield Brand.objects.set_db(self.db).all()
+        bs_from_db.sort(key=lambda x: x.title)
+        b1_from_db = bs_from_db[0]
+        b2_from_db = bs_from_db[1]
+        self.assertEqual(b1_from_db.menu, menu1)
+        self.assertEqual(b2_from_db.menu, menu2)

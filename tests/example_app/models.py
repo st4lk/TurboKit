@@ -57,6 +57,11 @@ class Page(BaseModel):
     content = DynamicType()
 
 
+class Brand(BaseModel):
+    title = types.StringType()
+    menu = compound.ListType(DynamicType)
+
+
 class SchematicsFieldsModel(BaseModel):
     MONGO_COLLECTION = 'st'
 
