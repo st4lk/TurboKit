@@ -7,6 +7,14 @@ from bson.objectid import ObjectId
 from .utils import get_base_model, get_simple_model, get_model
 
 
+# Delete rules
+DO_NOTHING = 0
+NULLIFY = 1
+CASCADE = 2
+DENY = 3
+PULL = 4
+
+
 class ObjectIdType(SchematicsObjectIdType):
 
     def __init__(self, *args, **kwargs):
@@ -52,13 +60,14 @@ class ModelReferenceMeta(TypeMeta):
 class ModelReferenceType(ObjectIdType):
     __metaclass__ = ModelReferenceMeta
 
-    def __init__(self, field, **kwargs):
+    def __init__(self, field, reverse_delete_rule=DO_NOTHING, **kwargs):
         """
         Keep name `field`, as schematics.types.compound.MultiType
         use this name in init_compound_field
         """
         self.model_class = field
         self.fields = self.model_class.fields
+        self.reverse_delete_rule = reverse_delete_rule
 
         validators = kwargs.pop("validators", [])
         self.strict = kwargs.pop("strict", True)
