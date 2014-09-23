@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from tornado.testing import gen_test
-from example_app.models import RecordSeries, SimpleModel, Record, Event, User
+from example_app.models import (RecordSeries, SimpleModel, Record, Event,
+    User, Brand)
 from .base import BaseSerializationTest
 
 
@@ -224,6 +225,29 @@ class TestSerializationReferenceList(BaseSerializationTest):
             self.assertEqual(record.pk, record_from_db)
             if json_db:
                 self.assertEqual(json_db, str(record.pk))
+
+
+class TestSerializationListDynamicType(BaseSerializationTest):
+    MODEL_CLASS = Brand
+
+    @gen_test
+    def test_list_dynamic_save(self):
+        json_data = self.json_data
+        menu_list = [
+            [12, 'some string'],
+            [12, 'some string', ['l', 'i', 's', 't', 1]],
+        ]
+        for menu in menu_list:
+            json_data['menu'] = menu
+            # create model from json
+            m = self.model(json_data)
+            yield m.save(self.db)
+            m_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
+            self.assertEqual(m_db.menu, menu)
+            db_json = m_db.to_primitive()
+            # ignore id
+            del db_json['id']
+            self.assertEqual(db_json, json_data)
 
 
 class TestSerializationGenericReferenceList(BaseSerializationTest):

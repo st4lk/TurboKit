@@ -2,7 +2,7 @@
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record, Transaction, Page, Brand)
+    Event, Record, Transaction, Page)
 from .base import BaseSerializationTest, BaseTest
 
 
@@ -260,6 +260,35 @@ class TestSerializationModelReference(BaseSerializationTest):
         raise gen.Return(results)
 
 
+class TestSerializationSingleDynamicType(BaseSerializationTest):
+    """
+    Currently can't create dynamic NestedModel from json as value for dynamic field
+    """
+    MODEL_CLASS = Page
+
+    @gen_test
+    def test_single_dynamic_save(self):
+        json_data = self.json_data
+        content_list = [
+            12,
+            'some string',
+            ['l', 'i', 's', 't', 1],
+            ['l', 'i', 's', 't', [1, 2]],
+            {'d': 'i', 'c': 't'},
+        ]
+        for content in content_list:
+            json_data['content'] = content
+            # create model from json
+            m = self.model(json_data)
+            yield m.save(self.db)
+            m_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
+            self.assertEqual(m_db.content, content)
+            db_json = m_db.to_primitive()
+            # ignore id
+            del db_json['id']
+            self.assertEqual(db_json, json_data)
+
+
 class TestSerializationGenericModelReference(BaseTest):
     # TODO
     MODEL_CLASS = Transaction
@@ -291,48 +320,3 @@ class TestSerializationGenericModelReference(BaseTest):
     @gen_test
     def test_generic_model_prefetch_related_filter_child_fields(self):
         pass
-
-
-class TestSerializationSingleDynamicType(BaseSerializationTest):
-    """
-    Currently can't create dynamic NestedModel from json as value for dynamic field
-    """
-    MODEL_CLASS = Page
-
-    @gen_test
-    def test_single_dynamic_save(self):
-        json_data = self.json_data
-        content_list = [
-            12,
-            'some string',
-            ['l', 'i', 's', 't', 1],
-            ['l', 'i', 's', 't', [1, 2]],
-            {'d': 'i', 'c': 't'},
-        ]
-        for content in content_list:
-            json_data['content'] = content
-            # create model from json
-            m = self.model(json_data)
-            yield m.save(self.db)
-            m_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
-            self.assertEqual(m_db.content, content)
-        pass
-
-
-class TestSerializationListDynamicType(BaseSerializationTest):
-    MODEL_CLASS = Brand
-
-    @gen_test
-    def test_list_dynamic_save(self):
-        json_data = self.json_data
-        menu_list = [
-            [12, 'some string'],
-            [12, 'some string', ['l', 'i', 's', 't', 1]],
-        ]
-        for menu in menu_list:
-            json_data['menu'] = menu
-            # create model from json
-            m = self.model(json_data)
-            yield m.save(self.db)
-            m_db = yield self.model.objects.set_db(self.db).get({"id": m.pk})
-            self.assertEqual(m_db.menu, menu)
