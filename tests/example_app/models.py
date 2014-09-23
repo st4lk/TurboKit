@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from turbokit.models import BaseModel, SchematicsModel
-from turbokit.types import ModelReferenceType, GenericModelReferenceType
+from turbokit.models import BaseModel, SimpleMongoModel
+from turbokit.types import ModelReferenceType, GenericModelReferenceType, DynamicType
 from schematics import types
 from schematics.types import compound
 
@@ -39,7 +39,7 @@ class RecordSeries(BaseModel):
     main_event = ModelReferenceType(Event)
 
 
-class NestedModel(SchematicsModel):
+class NestedModel(SimpleMongoModel):
     type_string = types.StringType()
     type_int = types.IntType()
 
@@ -50,6 +50,11 @@ class NestedModel(SchematicsModel):
 class Transaction(BaseModel):
     title = types.StringType()
     item = GenericModelReferenceType()
+
+
+class Page(BaseModel):
+    title = types.StringType()
+    content = DynamicType()
 
 
 class SchematicsFieldsModel(BaseModel):

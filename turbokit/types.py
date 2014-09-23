@@ -2,9 +2,9 @@
 from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
 from schematics.exceptions import ValidationError, ConversionError
 from schematics.transforms import export_loop
-from schematics.types import TypeMeta
+from schematics.types import TypeMeta, BaseType
 from bson.objectid import ObjectId
-from .utils import get_base_model
+from .utils import get_base_model, get_simple_model, get_model
 
 
 class ObjectIdType(SchematicsObjectIdType):
@@ -108,8 +108,38 @@ class ModelReferenceType(ObjectIdType):
                 return shaped
 
 
+class DynamicType(BaseType):
+    # TODO: process BaseModel
+
+    def validate_dynamic(self, value):
+        if isinstance(value, get_base_model()):
+            raise ValidationError("Saving instance of BaseModel currently not implemented")
+        if hasattr(value, 'validate'):
+            # TODO: pass partial, strict. Look for schematics.modelsModel.validate
+            value.validate()
+
+    def to_mongo(self, value, context=None):
+        if hasattr(value, 'to_mongo'):
+            if isinstance(value, get_simple_model()):
+                data = value.to_mongo()
+                data['_cls'] = value._cls_key
+                return data
+        return value
+
+    def to_native(self, value, context=None):
+        if isinstance(value, dict):
+            if '_cls' in value:
+                _cls = value.pop('_cls')
+                if '_id' in value:  # TODO: process BaseModel
+                    pass
+                else:
+                    model_class = get_model(_cls)
+                    value = model_class(value)
+        return value
+
+
 class GenericModelReferenceType(ObjectIdType):
-    #TODO: implemente functionality, covered by
+    #TODO: implement functionality, covered by
     # TestSerializationGenericReferenceList and TestSerializationGenericModelReference
 
     __metaclass__ = ModelReferenceMeta

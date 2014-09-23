@@ -3,9 +3,9 @@ import logging
 import motor
 from datetime import timedelta
 from tornado import gen, ioloop
-from schematics.models import Model as SchematicsModel
+from schematics.models import ModelMeta, Model as SchematicsModel
 from pymongo.errors import ConnectionFailure
-from .utils import methodize
+from .utils import methodize, _document_registry
 from .transforms import to_mongo
 from .types import ObjectIdType
 from .managers import AsyncManagerMetaClass
@@ -14,7 +14,38 @@ l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
 
 
-class BaseModel(SchematicsModel):
+class SimpleModelMetaClass(ModelMeta):
+
+    def __new__(cls, name, bases, attrs):
+        super_new = super(SimpleModelMetaClass, cls).__new__
+
+        parents = [b for b in bases if isinstance(b, SimpleModelMetaClass) and
+                   not (b.__mro__ == (b, object))]
+
+        if not parents:
+            return super_new(cls, name, bases, attrs)
+        else:
+            new_class = super_new(cls, name, bases, attrs)
+            cls_key = ".".join((new_class.__module__, new_class.__name__))
+            _document_registry[cls_key] = new_class
+            new_class._cls_key = cls_key
+
+            return new_class
+
+
+class MongoDBMixin(object):
+    def to_mongo(self, role=None, context=None, expand_related=False):
+        return to_mongo(self.__class__, self, role=role, context=context)
+
+
+class SimpleMongoModel(MongoDBMixin, SchematicsModel):
+    """
+    Embedded models must subclass this Model.
+    """
+    __metaclass__ = SimpleModelMetaClass
+
+
+class BaseModel(MongoDBMixin, SchematicsModel):
     """
     Provides generic methods to work with model.
     Why use `MyModel.find_one` instead of `db.collection.find_one` ?
@@ -289,9 +320,6 @@ class BaseModel(SchematicsModel):
             for new_key in new_keys:
                 del data[new_key]
         return cls(raw_data=data, db=db)
-
-    def to_mongo(self, role=None, context=None, expand_related=False):
-        return to_mongo(self.__class__, self, role=role, context=context)
 
     def serialize(self, role=None, context=None, expand_related=False):
         """

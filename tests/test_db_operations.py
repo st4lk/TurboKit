@@ -3,7 +3,8 @@ import pymongo
 from base import BaseTest
 from tornado.testing import gen_test
 from tornado import gen
-from example_app.models import SimpleModel, Transaction, User
+from example_app.models import (SimpleModel, Transaction, User, Page,
+    NestedModel)
 
 
 class TestDbOperations(BaseTest):
@@ -118,3 +119,29 @@ class TestGenericModelDbOperations(BaseTest):
         self.assertEqual(t2_db.item, um.pk)
         # it is possible to save object, got from database
         yield t1_db.save(self.db)
+
+
+class TestDymanicDbOperations(BaseTest):
+    @gen_test
+    def test_dynamic_save_and_get(self):
+        # store primitive
+        p = Page(dict(title="first", content=123))
+        yield p.save(self.db)
+        p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
+        self.assertEqual(p.content, p_from_db.content)
+        # store list
+        p.content = [1, 2, 3]
+        yield p.save(self.db)
+        p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
+        self.assertEqual(p.content, p_from_db.content)
+        # store dict
+        p.content = {'a': 1, 'b': 'val'}
+        yield p.save(self.db)
+        p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
+        self.assertEqual(p.content, p_from_db.content)
+        # store embeded model
+        nm = NestedModel(dict(type_string="good", type_int=15))
+        p.content = nm
+        yield p.save(self.db)
+        p_from_db = yield Page.objects.set_db(self.db).get({"id": p.pk})
+        self.assertEqual(nm, p_from_db.content)

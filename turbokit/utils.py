@@ -6,7 +6,7 @@ from .errors import NotRegistered
 _document_registry = {}
 
 
-def get_document(name):
+def get_model(name):
     doc = _document_registry.get(name, None)
     if not doc:
         raise NotRegistered("""
@@ -21,6 +21,12 @@ def get_base_model():
     """ To avoid circular imports """
     from .models import BaseModel
     return BaseModel
+
+
+def get_simple_model():
+    """ To avoid circular imports """
+    from .models import SimpleMongoModel
+    return SimpleMongoModel
 
 
 def methodize(func, instance):
