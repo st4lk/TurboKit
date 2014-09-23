@@ -39,10 +39,6 @@ class ObjectIdWithLen(ObjectId):
         return 1
 
 
-def filter_validate_id(partial_func):
-    return 'validate_id' != partial_func.func_name
-
-
 class ModelReferenceMeta(TypeMeta):
     def __new__(cls, name, bases, attrs):
         """
@@ -65,8 +61,7 @@ class ModelReferenceType(ObjectIdType):
         Keep name `field`, as schematics.types.compound.MultiType
         use this name in init_compound_field
         """
-        self.model_class = field
-        self.fields = self.model_class.fields
+        self._model_class = field
         self.reverse_delete_rule = reverse_delete_rule
 
         validators = kwargs.pop("validators", [])
@@ -81,6 +76,25 @@ class ModelReferenceType(ObjectIdType):
 
         # super(ModelReferenceType, self).__init__(
         #     validators=[validate_model] + validators, **kwargs)
+
+    @property
+    def model_class(self):
+        """
+        To handle 'self' reference, we need to know the owner_model class
+        But it is not avaliable in __init__ of this field, this
+        property will be attached after __init__.
+        Look schematics.models.ModelMeta for details
+        """
+        if isinstance(self._model_class, basestring):
+            if self._model_class == 'self':
+                self._model_class = self.owner_model
+            else:
+                raise NotImplementedError("String class reference TBD")
+        return self._model_class
+
+    @property
+    def fields(self):
+        return self.model_class.fields
 
     def validate_id(self, value):
         if isinstance(value, get_base_model()):

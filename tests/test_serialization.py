@@ -2,7 +2,7 @@
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record, Transaction, Page)
+    Event, Record, Transaction, Page, Topic)
 from .base import BaseSerializationTest, BaseTest
 
 
@@ -287,6 +287,68 @@ class TestSerializationSingleDynamicType(BaseSerializationTest):
             # ignore id
             del db_json['id']
             self.assertEqual(db_json, json_data)
+
+
+class TestModelReference(BaseTest):
+
+    @gen_test
+    def test_self_reference_save_and_get(self):
+        t1 = Topic()
+        yield t1.save(self.db)
+        t2 = Topic(dict(ancestor=t1))
+        yield t2.save(self.db)
+        # check ancestor as id
+        t2_from_db = yield Topic.objects.set_db(self.db).get({'id': t2.pk})
+        self.assertEqual(t2_from_db.ancestor, t1.pk)
+        self.assertEqual(t2_from_db.to_primitive(), {
+            "id": str(t2.pk),
+            "title": t2.title,
+            "ancestor": str(t1.pk),
+        })
+        # check ancestor as model
+        t2_from_db_prefchd = yield Topic.objects.set_db(self.db)\
+            .prefetch_related('ancestor').get({'id': t2.pk})
+        self.assertTrue(isinstance(t2_from_db_prefchd, Topic))
+        self.assertEqual(t2_from_db_prefchd.ancestor.pk, t1.pk)
+        self.assertEqual(t2_from_db_prefchd.to_primitive(), {
+            "id": str(t2.pk),
+            "title": t2.title,
+            "ancestor": {
+                "id": str(t1.pk),
+                "title": t1.title,
+            }
+        })
+        # check 2 levels of relation as id
+        t3 = Topic(dict(title="deep"))
+        yield t3.save(self.db)
+        t1.ancestor = t3
+        yield t1.save(self.db)
+        t2_from_db_prefchd = yield Topic.objects.set_db(self.db)\
+            .prefetch_related('ancestor').get({'id': t2.pk})
+        self.assertEqual(t2_from_db_prefchd.to_primitive(), {
+            "id": str(t2.pk),
+            "title": t2.title,
+            "ancestor": {
+                "id": str(t1.pk),
+                "title": t1.title,
+                "ancestor": str(t3.pk),
+            }
+        })
+        # check 2 levels of relation as model
+        t2_from_db_prefchd = yield Topic.objects.set_db(self.db)\
+            .prefetch_related('ancestor.ancestor').get({'id': t2.pk})
+        self.assertEqual(t2_from_db_prefchd.to_primitive(), {
+            "id": str(t2.pk),
+            "title": t2.title,
+            "ancestor": {
+                "id": str(t1.pk),
+                "title": t1.title,
+                "ancestor": {
+                    "id": str(t3.pk),
+                    "title": t3.title,
+                }
+            }
+        })
 
 
 class TestSerializationGenericModelReference(BaseTest):

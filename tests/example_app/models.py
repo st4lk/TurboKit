@@ -73,6 +73,11 @@ class Plan(BaseModel):
         return self.ends_at < datetime.now()
 
 
+class Topic(BaseModel):
+    title = types.StringType(default='best')
+    ancestor = ModelReferenceType('self')
+
+
 class SchematicsFieldsModel(BaseModel):
     MONGO_COLLECTION = 'st'
 
