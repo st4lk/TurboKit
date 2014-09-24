@@ -97,6 +97,11 @@ class AsyncManagerCursor(PrefetchRelatedMixin):
         return self
 
     @gen.coroutine
+    def count(self, with_limit_and_skip=True):
+        response = yield self.cursor.count(with_limit_and_skip=with_limit_and_skip)
+        raise gen.Return(response)
+
+    @gen.coroutine
     def __getitem__(self, index, *args, **kwargs):
         result = None
         if isinstance(index, slice):

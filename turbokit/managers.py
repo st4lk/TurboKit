@@ -48,6 +48,13 @@ class AsyncManager(PrefetchRelatedMixin):
         raise gen.Return(results)
 
     @gen.coroutine
+    def count(self, with_limit_and_skip=True):
+        cursor = self.db[self.collection].find({})
+        result = yield AsyncManagerCursor(self.cls, cursor, self.db).count(
+            with_limit_and_skip=with_limit_and_skip)
+        raise gen.Return(result)
+
+    @gen.coroutine
     def aggregate(self, pipeline, **kwargs):
         """
         With server version >= 2.5.1, pass cursor={} to retrieve unlimited

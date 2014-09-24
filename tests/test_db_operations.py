@@ -78,6 +78,21 @@ class TestDbOperations(BaseTest):
         plan_db = yield Plan.objects.set_db(self.db).get({'id': plan.pk})
         self.assertFalse(plan_db.is_expired)
 
+    @gen_test
+    def test_count(self):
+        yield self._create_models(self.db, count=9)
+        # count all
+        count = yield SimpleModel.objects.set_db(self.db).count()
+        self.assertEqual(count, 9)
+        # count filter
+        count = yield SimpleModel.objects.set_db(self.db).filter(
+            {"secret": {"$in": ['1', '2']}}).count()
+        self.assertEqual(count, 2)
+        # count skip, limit
+        count = yield SimpleModel.objects.set_db(self.db).filter({})\
+            .skip(2).limit(5).count()
+        self.assertEqual(count, 5)
+
     @gen.coroutine
     def _create_models(self, db, count=5):
         models = []
