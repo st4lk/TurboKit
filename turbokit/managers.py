@@ -4,12 +4,10 @@ Base code is taken from https://github.com/wsantos/motorm
 """
 import logging
 from bson.objectid import ObjectId
-from schematics.models import ModelMeta
 from tornado import gen
 from schematics.models import Model as SchematicsModel
 from pymongo.errors import OperationFailure
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
-from .utils import _document_registry
 
 l = logging.getLogger(__name__)
 
@@ -82,35 +80,3 @@ class AsyncManager(PrefetchRelatedMixin):
             else:
                 query['_id'] = _id
         return query
-
-
-class AsyncManagerMetaClass(ModelMeta):
-
-    def __new__(cls, name, bases, attrs):
-        super_new = super(AsyncManagerMetaClass, cls).__new__
-
-        parents = [b for b in bases if isinstance(b, AsyncManagerMetaClass) and
-                   not (b.__mro__ == (b, object))]
-
-        if not parents:
-            return super_new(cls, name, bases, attrs)
-        else:
-            new_class = super_new(cls, name, bases, attrs)
-
-            # Collection name
-            attrs["MONGO_COLLECTION"] = attrs.get(
-                "MONGO_COLLECTION", name.replace("Model", "").lower())
-
-            collection = attrs["MONGO_COLLECTION"]
-
-            # Add all attributes to the class.
-            for obj_name, obj in attrs.items():
-                setattr(new_class, obj_name, obj)
-            manager = AsyncManager(new_class, collection)
-            setattr(new_class, "objects", manager)
-
-            cls_key = ".".join((new_class.__module__, new_class.__name__))
-            _document_registry[cls_key] = new_class
-            new_class._cls_key = cls_key
-
-            return new_class

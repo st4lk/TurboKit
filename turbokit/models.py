@@ -8,7 +8,7 @@ from pymongo.errors import ConnectionFailure
 from .utils import methodize, _document_registry
 from .transforms import to_mongo
 from .types import ObjectIdType
-from .managers import AsyncManagerMetaClass
+from .managers import AsyncManager
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -29,8 +29,29 @@ class SimpleModelMetaClass(ModelMeta):
             cls_key = ".".join((new_class.__module__, new_class.__name__))
             _document_registry[cls_key] = new_class
             new_class._cls_key = cls_key
-
+            cls.add_database_functionality(attrs, name, new_class)
             return new_class
+
+    @classmethod
+    def add_database_functionality(cls, attrs, name, new_class):
+        pass
+
+
+class BaseModelMetaClass(SimpleModelMetaClass):
+
+    @classmethod
+    def add_database_functionality(cls, attrs, name, new_class):
+        # Collection name
+        attrs["MONGO_COLLECTION"] = attrs.get(
+            "MONGO_COLLECTION", name.replace("Model", "").lower())
+
+        collection = attrs["MONGO_COLLECTION"]
+
+        # Add all attributes to the class.
+        for obj_name, obj in attrs.items():
+            setattr(new_class, obj_name, obj)
+        manager = AsyncManager(new_class, collection)
+        setattr(new_class, "objects", manager)
 
 
 class MongoDBMixin(object):
@@ -63,7 +84,7 @@ class BaseModel(MongoDBMixin, SchematicsModel):
 
         obj = yield MyModel.find_one(db, {"i": 3})
     """
-    __metaclass__ = AsyncManagerMetaClass
+    __metaclass__ = BaseModelMetaClass
 
     RECONNECT_TRIES = 5
     RECONNECT_TIMEOUT = 2  # in seconds
