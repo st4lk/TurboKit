@@ -47,7 +47,7 @@ class PrefetchRelatedMixin(object):
                 ids_expanded = list(set([item for sublist in ids for item in sublist]))
             else:
                 ids_expanded = ids
-            cursor = self.db[pr_field.model_class.MONGO_COLLECTION]\
+            cursor = self.db[pr_field.model_class._options.namespace]\
                 .find({"_id": {"$in": ids_expanded}})
             pr_data_list = yield cursor.to_list(None)
             pr_model_list = map(lambda d: pr_field.model_class(d, from_mongo=True),

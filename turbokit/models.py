@@ -2,10 +2,16 @@
 import logging
 import motor
 import pytz
+
 from datetime import timedelta
 from tornado import gen, ioloop
-from schematics.models import ModelMeta, Model as SchematicsModel
 from pymongo.errors import ConnectionFailure
+from schematics.models import (
+    ModelMeta as SchematicsModelMeta,
+    Model as SchematicsModel,
+    ModelOptions
+)
+
 from .utils import methodize, _document_registry
 from .transforms import to_mongo, to_primitive, convert
 from .types import ObjectIdType
@@ -15,44 +21,69 @@ l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
 
 
-class SimpleModelMetaClass(ModelMeta):
+class ExtendedModelOptions(ModelOptions):
+    def __init__(self, klass, namespace=None, roles=None, serialize_when_none=True, **other_options):
+        """Extended version of original `ModelOptions`. Designed to store
+        more persistence layer options.
 
+        Other options can include keys such as:
+            `indexes` to specify indexing strategy,
+            `max_documents` and `max_size` for capped collections,
+            and `ordering`.
+
+        There will be more in future, maybe. Maybe they will be described
+        as standalone params, not just as **kwargs.
+        """
+        super(ExtendedModelOptions, self).__init__(klass, namespace, roles, serialize_when_none)
+        for name, value in other_options.iteritems():
+            setattr(self, name, value)
+
+    @property
+    def collection(self):
+        """Just a handy alias to avoid naming confusion."""
+        return self.namespace
+
+    @collection.setter
+    def collection(self, value):
+        self.namespace = value
+
+
+class BaseModelMeta(SchematicsModelMeta):
     def __new__(cls, name, bases, attrs):
-        super_new = super(SimpleModelMetaClass, cls).__new__
-
-        parents = [b for b in bases if isinstance(b, SimpleModelMetaClass) and
-                   not (b.__mro__ == (b, object))]
-
-        if not parents:
-            return super_new(cls, name, bases, attrs)
-        else:
+        super_new = super(BaseModelMeta, cls).__new__
+        parents = [b for b in bases if isinstance(b, BaseModelMeta) and b.__mro__ != (b, object)]
+        if parents:
             new_class = super_new(cls, name, bases, attrs)
             cls_key = ".".join((new_class.__module__, new_class.__name__))
-            _document_registry[cls_key] = new_class
+            _document_registry[cls_key] = new_class  # TODO: move to connection
             new_class._cls_key = cls_key
-            cls.add_database_functionality(attrs, name, new_class)
+            cls.add_persistence_layer(attrs, name, new_class)
             return new_class
+        return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def add_database_functionality(cls, attrs, name, new_class):
+    def add_persistence_layer(cls, attrs, name, new_class):
         pass
 
 
-class BaseModelMetaClass(SimpleModelMetaClass):
+class ModelMeta(BaseModelMeta):
+    @classmethod
+    def _read_options(mcs, name, bases, attrs):
+        """Override original `MetaClass` class method to replace `ModelOptions` with
+        its extended version as elegant as possible.
+        """
+        attrs['__optionsclass__'] = attrs.get('__optionsclass__', ExtendedModelOptions)
+        return super(BaseModelMeta, mcs)._read_options(name, bases, attrs)
 
     @classmethod
-    def add_database_functionality(cls, attrs, name, new_class):
-        # Collection name
-        attrs["MONGO_COLLECTION"] = attrs.get(
-            "MONGO_COLLECTION", name.replace("Model", "").lower())
+    def add_persistence_layer(cls, attrs, name, new_class):
+        if not attrs['_options'].namespace:
+            attrs['_options'].namespace = name.replace("Model", "").lower()
 
-        collection = attrs["MONGO_COLLECTION"]
+        for attr, value in attrs.iteritems():
+            setattr(new_class, attr, value)
 
-        # Add all attributes to the class.
-        for obj_name, obj in attrs.items():
-            setattr(new_class, obj_name, obj)
-        manager = AsyncManager(new_class, collection)
-        setattr(new_class, "objects", manager)
+        setattr(new_class, "objects", AsyncManager(new_class, attrs['_options'].namespace))
 
 
 class SerializationMixin(object):
@@ -87,7 +118,7 @@ class SimpleMongoModel(SerializationMixin, SchematicsModel):
     """
     Embedded models must subclass this Model.
     """
-    __metaclass__ = SimpleModelMetaClass
+    __metaclass__ = BaseModelMeta
 
 
 class BaseModel(SerializationMixin, SchematicsModel):
@@ -108,9 +139,9 @@ class BaseModel(SerializationMixin, SchematicsModel):
 
         obj = yield MyModel.find_one(db, {"i": 3})
     """
-    __metaclass__ = BaseModelMetaClass
+    __metaclass__ = ModelMeta
 
-    RECONNECT_TRIES = 5
+    RECONNECT_TRIES = 5  # TODO: Move to connection
     RECONNECT_TIMEOUT = 2  # in seconds
 
     _id = ObjectIdType(serialized_name='id')
@@ -141,7 +172,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
 
     @classmethod
     def get_collection(cls):
-        return cls.MONGO_COLLECTION
+        return cls._options.namespace
 
     @classmethod
     def check_collection(cls, collection):

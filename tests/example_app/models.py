@@ -84,8 +84,6 @@ class Action(BaseModel):
 
 
 class SchematicsFieldsModel(BaseModel):
-    MONGO_COLLECTION = 'st'
-
     # base fields
     type_string = types.StringType()
     type_int = types.IntType()
@@ -119,4 +117,6 @@ class SchematicsFieldsModel(BaseModel):
     type_ref_usermodel = ModelReferenceType(User)
 
     class Options:
+        # namespace = 'st'
+        collection = 'st'
         serialize_when_none = False
