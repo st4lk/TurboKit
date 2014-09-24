@@ -50,7 +50,8 @@ class PrefetchRelatedMixin(object):
             cursor = self.db[pr_field.model_class.MONGO_COLLECTION]\
                 .find({"_id": {"$in": ids_expanded}})
             pr_data_list = yield cursor.to_list(None)
-            pr_model_list = map(pr_field.model_class, pr_data_list)
+            pr_model_list = map(lambda d: pr_field.model_class(d, from_mongo=True),
+                                pr_data_list)
             if pr_child_field_names:
                 # fetch child related fields recursively
                 pr_model_list = yield self.fetch_related_objects(pr_model_list,
@@ -82,7 +83,7 @@ class AsyncManagerCursor(PrefetchRelatedMixin):
 
     def next_object(self):
         result = self.cursor.next_object()
-        return self.cls(result)
+        return self.cls(result, from_mongo=True)
 
     def sort(self, *args, **kwargs):
         self.cursor = self.cursor.sort(*args, **kwargs)
@@ -119,6 +120,6 @@ class AsyncManagerCursor(PrefetchRelatedMixin):
     @gen.coroutine
     def all(self):
         response = yield self.cursor.to_list(None)
-        results = [self.cls(d) for d in response]
+        results = [self.cls(d, from_mongo=True) for d in response]
         results_with_related = yield self.fetch_related_objects(results)
         raise gen.Return(results_with_related)

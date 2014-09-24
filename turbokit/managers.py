@@ -35,7 +35,7 @@ class AsyncManager(PrefetchRelatedMixin):
         if return_raw:
             result = response
         else:
-            m = self.cls(response)
+            m = self.cls(response, from_mongo=True)
             results_with_related = yield self.fetch_related_objects([m])
             result = results_with_related[0]
         raise gen.Return(result)

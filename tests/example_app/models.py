@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from turbokit.models import BaseModel, SimpleMongoModel
-from turbokit.types import ModelReferenceType, GenericModelReferenceType, DynamicType
+from turbokit.types import (ModelReferenceType, GenericModelReferenceType,
+    DynamicType, LocaleDateTimeType)
 from schematics import types
 from schematics.types import compound
 from schematics.types.serializable import serializable
@@ -76,6 +77,10 @@ class Plan(BaseModel):
 class Topic(BaseModel):
     title = types.StringType(default='best')
     ancestor = ModelReferenceType('self')
+
+
+class Action(BaseModel):
+    start_at = LocaleDateTimeType()
 
 
 class SchematicsFieldsModel(BaseModel):

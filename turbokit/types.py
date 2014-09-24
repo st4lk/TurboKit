@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import tzlocal
 from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
 from schematics.exceptions import ValidationError, ConversionError
 from schematics.transforms import export_loop
-from schematics.types import TypeMeta, BaseType
+from schematics.types import TypeMeta, BaseType, DateTimeType
 from bson.objectid import ObjectId
 from .utils import get_base_model, get_simple_model, get_model
 
@@ -223,3 +224,45 @@ class GenericModelReferenceType(ObjectIdType):
             self._cls = value['_cls']
             return value['_id']
         return super(GenericModelReferenceType, self).to_native(value, context=context)
+
+
+class LocaleDateTimeType(DateTimeType):
+
+    def __init__(self, formats=None, serialized_format=None,
+                serialize_as_isoformat=True, **kwargs):
+        if not serialized_format and serialize_as_isoformat:
+            serialized_format = self.render_isoformat
+        super(LocaleDateTimeType, self).__init__(formats=formats,
+            serialized_format=serialized_format, **kwargs)
+
+    @classmethod
+    def render_isoformat(cls, value, timezone=None):
+        timezone = timezone or tzlocal.get_localzone()
+        return value.astimezone(timezone).isoformat()
+
+    def to_primitive(self, value, context=None, timezone=None):
+        if callable(self.serialized_format):
+            return self.serialized_format(value, timezone=timezone)
+        timezone = timezone or tzlocal.get_localzone()
+        return value.astimezone(timezone).strftime(self.serialized_format)
+
+    def to_mongo(self, value, context=None):
+        return self.to_native(value, context=context)
+
+    def to_native(self, value, context=None, from_mongo=False):
+        dt_value = super(LocaleDateTimeType, self).to_native(value, context=context)
+        if from_mongo:
+            # datetime is naive, but assume, that it has database_timezone
+            dt_value = self.owner_model.database_timezone.localize(dt_value)
+        else:
+            dt_value = self.convert_to_server_tz(dt_value)
+        return dt_value
+
+    def convert_to_server_tz(self, dt_value):
+        if not dt_value.tzinfo:
+            # dt_value is naive, assume it has current server timezone
+            local_tz = tzlocal.get_localzone()
+            dt_value = local_tz.localize(dt_value)
+        elif dt_value.tzinfo != self.owner_model.database_timezone:
+            dt_value = dt_value.astimezone(self.owner_model.database_timezone)
+        return dt_value

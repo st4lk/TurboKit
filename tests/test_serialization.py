@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+import pytz
+import tzlocal
+import re
+from datetime import datetime, timedelta
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record, Transaction, Page, Topic)
+    Event, Record, Transaction, Page, Topic, Action)
 from .base import BaseSerializationTest, BaseTest
 
 
@@ -349,6 +353,91 @@ class TestModelReference(BaseTest):
                 }
             }
         })
+
+
+class TestLocaleDateTimeType(BaseTest):
+
+    def setUp(self):
+        self.naive_now = datetime.now()
+        self.local_tz = tzlocal.get_localzone()
+        self.date_tz_local = self.local_tz.localize(self.naive_now)
+        self.date_tz_db = self.date_tz_local.astimezone(Action.database_timezone)
+        self.eastern_tz = pytz.timezone('US/Eastern')
+        self.date_tz_estn = self.date_tz_local.astimezone(self.eastern_tz)
+        super(TestLocaleDateTimeType, self).setUp()
+
+    @gen_test
+    def test_save_naive_datetime(self):
+        a = Action(dict(start_at=self.naive_now))
+        a_from_db = yield self._get_action_from_db(a)
+        self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
+
+    @gen_test
+    def test_save_localized_datetime(self):
+        dt_eastern = self.date_tz_local.astimezone(self.eastern_tz)
+        a = Action(dict(start_at=dt_eastern))
+        a_from_db = yield self._get_action_from_db(a)
+        self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
+
+    @gen_test
+    def test_locale_serialize_to(self):
+        a = Action(dict(start_at=self.naive_now))
+        a_from_db = yield self._get_action_from_db(a)
+        # if not timezone specified, render as local timezone
+        a_json = a_from_db.to_primitive()
+        # drop microseconds (look assertDateTimeEqual for details)
+        a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
+        expected_dt = self._drop_micorseconds(self.date_tz_local.isoformat())
+        self.assertEqual(a_json, {
+            'id': str(a.pk),
+            'start_at': expected_dt,
+        })
+        # specify timezone
+        a_json = a_from_db.to_primitive(timezone=self.eastern_tz)
+        a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
+        expected_dt = self._drop_micorseconds(self.date_tz_estn.isoformat())
+        self.assertEqual(a_json, {
+            'id': str(a.pk),
+            'start_at': expected_dt,
+        })
+
+    @gen_test
+    def test_locale_serialize_from(self):
+        # TODO
+        pass
+
+    @gen_test
+    def test_default_naive(self):
+        # TODO
+        pass
+
+    @gen.coroutine
+    def _get_action_from_db(self, a):
+        yield a.save(self.db)
+        a_from_db = yield Action.objects.set_db(self.db).get({"id": a.pk})
+        raise gen.Return(a_from_db)
+
+    def assertDateTimeEqual(self, dt1, dt2):
+        """
+        MongoDB saves only 3 digits of microseconds, whereas python has more.
+        So, check delta, not exact equality.
+        Example:
+            save this python datetime to mongo:
+                datetime.datetime(2014, 9, 24, 18, 18, 26, 784303)
+            in mongo you'll have this (only first 3 digits of microseconds were saved):
+                ISODate("2014-09-24T18:18:26.784Z")
+            convert from mongo to python, you'll get:
+                datetime.datetime(2014, 9, 24, 18, 18, 26, 784000)
+        """
+        td = timedelta(microseconds=1000)
+        if dt1 > dt2:
+            return dt1 - dt2 < td
+        else:
+            return dt2 - dt1 < td
+
+    @staticmethod
+    def _drop_micorseconds(dt_str):
+        return re.sub('\.[0-9]+([+-])', '.\2', dt_str)
 
 
 class TestSerializationGenericModelReference(BaseTest):

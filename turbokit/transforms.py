@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-from schematics.transforms import wholelist, allow_none
+from schematics.transforms import (wholelist, allow_none, import_loop,
+    export_loop as schematics_export_loop)
+from .types import LocaleDateTimeType
 
 
 def atoms(cls, instance_or_dict):
@@ -84,4 +86,41 @@ def to_mongo(cls, instance_or_dict, role=None, raise_error_on_role=True,
         id_name = cls._id.serialized_name
         if id_name in data:
             data['_id'] = data.pop(id_name)
+    return data
+
+
+def to_primitive(cls, instance_or_dict, role=None, raise_error_on_role=True,
+                 context=None, timezone=None):
+    """
+    Copy of schematics.transforms.to_promitive (v0.9-5),
+    it accepts additional named argument: timezone
+    """
+    def field_converter(field, value):
+        kwargs = dict(context=context)
+        if isinstance(field, LocaleDateTimeType):
+            kwargs['timezone'] = timezone
+        return field.to_primitive(value, **kwargs)
+
+    data = schematics_export_loop(cls, instance_or_dict, field_converter,
+                       role=role, raise_error_on_role=raise_error_on_role)
+    return data
+
+
+def convert(cls, instance_or_dict, context=None, partial=True, strict=False,
+            mapping=None, from_mongo=False):
+    """
+    Copy of schematics.transforms.convert (v0.9-5),
+    it accepts additional named argument: from_mongo
+    """
+    def field_converter(field, value, mapping=None):
+        kw_m = dict()
+        kw_t = dict(mapping=mapping)
+        if isinstance(field, LocaleDateTimeType):
+            kw_m['from_mongo'] = from_mongo
+        try:
+            return field.to_native(value, **dict(kw_t.items() + kw_m.items()))
+        except Exception:
+            return field.to_native(value, **kw_m)
+    data = import_loop(cls, instance_or_dict, field_converter, context=context,
+                       partial=partial, strict=strict, mapping=mapping)
     return data

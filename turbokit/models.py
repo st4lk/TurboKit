@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
 import motor
+import pytz
 from datetime import timedelta
 from tornado import gen, ioloop
 from schematics.models import ModelMeta, Model as SchematicsModel
 from pymongo.errors import ConnectionFailure
 from .utils import methodize, _document_registry
-from .transforms import to_mongo
+from .transforms import to_mongo, to_primitive, convert
 from .types import ObjectIdType
 from .managers import AsyncManager
 
@@ -54,19 +55,42 @@ class BaseModelMetaClass(SimpleModelMetaClass):
         setattr(new_class, "objects", manager)
 
 
-class MongoDBMixin(object):
+class SerializationMixin(object):
+    database_timezone = pytz.utc
+
+    def __init__(self, raw_data=None, deserialize_mapping=None, strict=True,
+            from_mongo=False):
+        if raw_data is None:
+            raw_data = {}
+        self._initial = raw_data
+        self._data = self.convert(raw_data, strict=strict,
+            mapping=deserialize_mapping, from_mongo=from_mongo)
+
     def to_mongo(self, role=None, context=None, expand_related=False):
         return to_mongo(self.__class__, self, role=role, context=context)
 
+    def to_primitive(self, role=None, context=None, timezone=None):
+        """
+        :arg timezone: format instances of LocaleDateTimeType with this timezone
+        """
+        return to_primitive(self.__class__, self, role=role, context=context,
+            timezone=timezone)
 
-class SimpleMongoModel(MongoDBMixin, SchematicsModel):
+    def convert(self, raw_data, **kw):
+        """
+        Use custom convert function
+        """
+        return convert(self.__class__, raw_data, **kw)
+
+
+class SimpleMongoModel(SerializationMixin, SchematicsModel):
     """
     Embedded models must subclass this Model.
     """
     __metaclass__ = SimpleModelMetaClass
 
 
-class BaseModel(MongoDBMixin, SchematicsModel):
+class BaseModel(SerializationMixin, SchematicsModel):
     """
     Provides generic methods to work with model.
     Why use `MyModel.find_one` instead of `db.collection.find_one` ?
