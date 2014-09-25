@@ -87,7 +87,6 @@ class ModelMeta(BaseModelMeta):
 
 
 class SerializationMixin(object):
-    database_timezone = pytz.utc
 
     def __init__(self, raw_data=None, deserialize_mapping=None, strict=True,
             from_mongo=False):
@@ -112,6 +111,10 @@ class SerializationMixin(object):
         Use custom convert function
         """
         return convert(self.__class__, raw_data, **kw)
+
+    @classmethod
+    def get_database_timezone(cls):
+        return pytz.utc
 
 
 class SimpleMongoModel(SerializationMixin, SchematicsModel):

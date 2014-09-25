@@ -361,7 +361,7 @@ class TestLocaleDateTimeType(BaseTest):
         self.naive_now = datetime.now()
         self.local_tz = tzlocal.get_localzone()
         self.date_tz_local = self.local_tz.localize(self.naive_now)
-        self.date_tz_db = self.date_tz_local.astimezone(Action.database_timezone)
+        self.date_tz_db = self.date_tz_local.astimezone(Action.get_database_timezone())
         self.eastern_tz = pytz.timezone('US/Eastern')
         self.date_tz_estn = self.date_tz_local.astimezone(self.eastern_tz)
         super(TestLocaleDateTimeType, self).setUp()
@@ -431,9 +431,9 @@ class TestLocaleDateTimeType(BaseTest):
         """
         td = timedelta(microseconds=1000)
         if dt1 > dt2:
-            return dt1 - dt2 < td
+            self.assertTrue(dt1 - dt2 < td)
         else:
-            return dt2 - dt1 < td
+            self.assertTrue(dt2 - dt1 < td)
 
     @staticmethod
     def _drop_micorseconds(dt_str):

@@ -253,16 +253,16 @@ class LocaleDateTimeType(DateTimeType):
         dt_value = super(LocaleDateTimeType, self).to_native(value, context=context)
         if from_mongo:
             # datetime is naive, but assume, that it has database_timezone
-            dt_value = self.owner_model.database_timezone.localize(dt_value)
+            dt_value = self.owner_model.get_database_timezone().localize(dt_value)
         else:
-            dt_value = self.convert_to_server_tz(dt_value)
+            dt_value = self.convert_to_database_tz(dt_value)
         return dt_value
 
-    def convert_to_server_tz(self, dt_value):
+    def convert_to_database_tz(self, dt_value):
         if not dt_value.tzinfo:
             # dt_value is naive, assume it has current server timezone
             local_tz = tzlocal.get_localzone()
             dt_value = local_tz.localize(dt_value)
-        elif dt_value.tzinfo != self.owner_model.database_timezone:
-            dt_value = dt_value.astimezone(self.owner_model.database_timezone)
+        if dt_value.tzinfo != self.owner_model.get_database_timezone():
+            dt_value = dt_value.astimezone(self.owner_model.get_database_timezone())
         return dt_value
