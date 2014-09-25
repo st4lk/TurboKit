@@ -3,3 +3,7 @@
 
 class NotRegistered(Exception):
     pass
+
+
+class OperationError(Exception):
+    pass

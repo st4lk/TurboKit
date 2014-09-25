@@ -6,3 +6,9 @@ TurboKit - async mongodb ODM for tornado
 
 
 Provides models to be used with [tornado](https://github.com/tornadoweb/tornado) and [mongodb](http://www.mongodb.org/) in asynchronous mode. Build on top of [schematics](https://github.com/schematics/schematics) and [motor](https://github.com/mongodb/motor).
+
+
+Be aware
+========
+
+* By defalut, `schematics.types.compound.ListType` defaults to None instead of empty list. If empty list is needed, provide `default=lambda: []` as init argument.

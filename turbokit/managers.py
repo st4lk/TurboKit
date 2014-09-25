@@ -28,7 +28,7 @@ class AsyncManager(PrefetchRelatedMixin):
         return AsyncManager(self.cls, self.collection, db)
 
     @gen.coroutine
-    def get(self, query=None, return_raw=False, callback=None):
+    def get(self, query=None, return_raw=False):
         # TODO: add reconnects here and in other methods
         query = self.process_query(query)
         response = yield self.db[self.collection].find_one(query)
@@ -39,6 +39,14 @@ class AsyncManager(PrefetchRelatedMixin):
             results_with_related = yield self.fetch_related_objects([m])
             result = results_with_related[0]
         raise gen.Return(result)
+
+    @gen.coroutine
+    def remove(self, query, **kwargs):
+        # TODO respect reverse_delete_rule
+        query = self.process_query(query)
+        response = yield self.db[self.collection].remove(query, **kwargs)
+        if response['ok'] != 1:
+            raise OperationFailure(response, code=response['ok'])
 
     @gen.coroutine
     def all(self):

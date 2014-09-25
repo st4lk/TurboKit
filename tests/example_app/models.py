@@ -2,7 +2,7 @@
 from datetime import datetime
 from turbokit.models import BaseModel, SimpleMongoModel
 from turbokit.types import (ModelReferenceType, GenericModelReferenceType,
-    DynamicType, LocaleDateTimeType)
+    DynamicType, LocaleDateTimeType, DO_NOTHING, NULLIFY, CASCADE, DENY, PULL)
 from schematics import types
 from schematics.types import compound
 from schematics.types.serializable import serializable
@@ -37,8 +37,8 @@ class Record(BaseModel):
 
 class RecordSeries(BaseModel):
     title = types.StringType()
-    records = compound.ListType(ModelReferenceType, compound_field=Record)
-    simplies = compound.ListType(ModelReferenceType, compound_field=SimpleModel)
+    records = compound.ListType(ModelReferenceType(Record))
+    simplies = compound.ListType(ModelReferenceType(SimpleModel))
     main_event = ModelReferenceType(Event)
 
 
@@ -85,6 +85,46 @@ class Action(BaseModel):
 
 class ActionDefaultDate(BaseModel):
     start_at = LocaleDateTimeType(default=datetime.now)
+
+
+class ChildA(BaseModel):
+    pass
+
+
+class ParentA(BaseModel):
+    child = ModelReferenceType(ChildA, reverse_delete_rule=DO_NOTHING)
+
+
+class ParentB(BaseModel):
+    child = ModelReferenceType(ChildA, reverse_delete_rule=NULLIFY)
+
+
+class ParentC(BaseModel):
+    child = ModelReferenceType(ChildA, reverse_delete_rule=CASCADE)
+
+
+class ParentD(BaseModel):
+    child = ModelReferenceType(ChildA, reverse_delete_rule=DENY)
+
+
+class ParentE(BaseModel):
+    childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=DO_NOTHING))
+
+
+class ParentF(BaseModel):
+    childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=NULLIFY))
+
+
+class ParentG(BaseModel):
+    childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=CASCADE))
+
+
+class ParentH(BaseModel):
+    childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=DENY))
+
+
+class ParentI(BaseModel):
+    childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=PULL))
 
 
 class SchematicsFieldsModel(BaseModel):

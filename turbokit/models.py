@@ -181,38 +181,12 @@ class BaseModel(SerializationMixin, SchematicsModel):
     def check_collection(cls, collection):
         return collection or cls.get_collection()
 
-    @classmethod
-    @gen.coroutine
-    def remove_entries(cls, db, query, collection=None):
-        """
-        TODO: move to model manager
-        Removes documents by given query.
-        Example:
-            obj = yield ExampleModel.remove_entries(
-                self.db, {"first_name": "Hello"})
-        """
-        c = cls.check_collection(collection)
-        query = cls.process_query(query)
-        for i in cls.reconnect_amount():
-            try:
-                yield motor.Op(db[c].remove, query)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'remove_entries')
-                if exceed:
-                    raise e
-            else:
-                return
-
     @gen.coroutine
     def remove(self, db, collection=None):
         """
         Removes current instance from database.
-        Example:
-            obj = yield ExampleModel.find_one(self.db, {"last_name": "Sara"})
-            yield obj.remove(self.db)
         """
-        yield self.remove_entries(db, {"_id": self.pk}, collection)
+        yield self.objects.set_db(db).remove({"_id": self.pk})
 
     @gen.coroutine
     def save(self, db=None, collection=None, ser=None):

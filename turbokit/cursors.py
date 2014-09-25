@@ -62,9 +62,9 @@ class PrefetchRelatedMixin(object):
             for m in objects_list:
                 f_value_was = getattr(m, pr_field_name)
                 if is_list:
-                    f_values_is = [pr_model_dict[pk] for pk in f_value_was]
+                    f_values_is = [pr_model_dict.get(pk) for pk in f_value_was]
                 else:
-                    f_values_is = pr_model_dict[f_value_was]
+                    f_values_is = pr_model_dict.get(f_value_was)
                 setattr(m, pr_field_name, f_values_is)
         raise gen.Return(objects_list)
 
