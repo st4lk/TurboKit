@@ -83,6 +83,10 @@ class Action(BaseModel):
     start_at = LocaleDateTimeType()
 
 
+class ActionDefaultDate(BaseModel):
+    start_at = LocaleDateTimeType(default=datetime.now)
+
+
 class SchematicsFieldsModel(BaseModel):
     # base fields
     type_string = types.StringType()

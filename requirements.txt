@@ -3,3 +3,4 @@ motor==0.3.2
 tornado==4.0.1
 pytz==2013d
 tzlocal==1.1.1
+python-dateutil==2.2

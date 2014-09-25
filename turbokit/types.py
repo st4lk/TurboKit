@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import tzlocal
+from datetime import datetime
+from dateutil import parser
 from schematics.contrib.mongo import ObjectIdType as SchematicsObjectIdType
 from schematics.exceptions import ValidationError, ConversionError
 from schematics.transforms import export_loop
@@ -227,6 +229,15 @@ class GenericModelReferenceType(ObjectIdType):
 
 
 class LocaleDateTimeType(DateTimeType):
+    """
+    Type to work with localized datetimes.
+    If naive datetime is given, it is assumed, that such value has timezone
+    of current machine.
+    It automatically converts given datetime to database timezone.
+    Database timezone is specified in model_class.get_database_timezone()
+    To serialize datetime back in any timezone, specify it as argument
+    in `to_primitive` method.
+    """
 
     def __init__(self, formats=None, serialized_format=None,
                 serialize_as_isoformat=True, **kwargs):
@@ -250,7 +261,10 @@ class LocaleDateTimeType(DateTimeType):
         return self.to_native(value, context=context)
 
     def to_native(self, value, context=None, from_mongo=False):
-        dt_value = super(LocaleDateTimeType, self).to_native(value, context=context)
+        if isinstance(value, datetime):
+            dt_value = value
+        else:
+            dt_value = parser.parse(value)
         if from_mongo:
             # datetime is naive, but assume, that it has database_timezone
             dt_value = self.owner_model.get_database_timezone().localize(dt_value)

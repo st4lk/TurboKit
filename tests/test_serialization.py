@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record, Transaction, Page, Topic, Action)
+    Event, Record, Transaction, Page, Topic, Action, ActionDefaultDate)
 from .base import BaseSerializationTest, BaseTest
 
 
@@ -402,14 +402,29 @@ class TestLocaleDateTimeType(BaseTest):
         })
 
     @gen_test
-    def test_locale_serialize_from(self):
-        # TODO
-        pass
+    def test_locale_serialize_from_aware(self):
+        input_json = {
+            'start_at': self.date_tz_estn.isoformat(),
+        }
+        a = Action(input_json)
+        self.assertDateTimeEqual(self.date_tz_estn, a.start_at)
+        a_from_db = yield self._get_action_from_db(a)
+        self.assertDateTimeEqual(self.date_tz_estn, a_from_db.start_at)
 
     @gen_test
-    def test_default_naive(self):
-        # TODO
-        pass
+    def test_locale_serialize_from_naive(self):
+        input_json = {
+            'start_at': self.naive_now.isoformat(),
+        }
+        a = Action(input_json)
+        self.assertDateTimeEqual(self.date_tz_db, a.start_at)
+        a_from_db = yield self._get_action_from_db(a)
+        self.assertDateTimeEqual(self.date_tz_db, a_from_db.start_at)
+
+    @gen_test
+    def test_locale_default_naive(self):
+        a = ActionDefaultDate()
+        self.assertDateTimeEqual(a.start_at, self.date_tz_db, timedelta(seconds=1))
 
     @gen.coroutine
     def _get_action_from_db(self, a):
@@ -417,7 +432,7 @@ class TestLocaleDateTimeType(BaseTest):
         a_from_db = yield Action.objects.set_db(self.db).get({"id": a.pk})
         raise gen.Return(a_from_db)
 
-    def assertDateTimeEqual(self, dt1, dt2):
+    def assertDateTimeEqual(self, dt1, dt2, detla=None):
         """
         MongoDB saves only 3 digits of microseconds, whereas python has more.
         So, check delta, not exact equality.
@@ -429,7 +444,7 @@ class TestLocaleDateTimeType(BaseTest):
             convert from mongo to python, you'll get:
                 datetime.datetime(2014, 9, 24, 18, 18, 26, 784000)
         """
-        td = timedelta(microseconds=1000)
+        td = detla or timedelta(microseconds=1000)
         if dt1 > dt2:
             self.assertTrue(dt1 - dt2 < td)
         else:
