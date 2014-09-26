@@ -323,7 +323,6 @@ class TestReverseDeleteRulesListField(BaseTest):
 
     @gen.coroutine
     def _check_cascade(self, from_queryset=False):
-        return  # TODO
         M = models.ParentG
         if from_queryset:
             childs1, _ = yield self._create_models(M)
@@ -339,14 +338,13 @@ class TestReverseDeleteRulesListField(BaseTest):
             yield childs_to_delete[0].remove(self.db)
         parents_db = yield M.objects.set_db(self.db).all()
         self.assertEqual(len(parents_db), 1)
-        self.assertEqual(len(parents_db[0].pk), parent_exist.pk)
+        self.assertEqual(parents_db[0].pk, parent_exist.pk)
         self.assertEqual(len(parents_db[0].childs), len(childs_exist))
         self.assertEqual(map(lambda x: x.pk, childs_exist),
             parents_db[0].childs)
 
     @gen.coroutine
     def _check_deny(self, from_queryset=False):
-        return  # TODO
         M1 = models.ParentE
         M2 = models.ParentH
         childs1, parent1 = yield self._create_models(M1)
@@ -357,7 +355,7 @@ class TestReverseDeleteRulesListField(BaseTest):
                 yield models.ChildA.objects.set_db(self.db).remove(
                     {"id": {"$in": map(lambda x: x.pk, childs_to_delete)}})
         else:
-            childs_to_delete = childs1[:1]
+            childs_to_delete = childs2[:1]
             with self.assertRaises(OperationError):
                 yield childs_to_delete[0].remove(self.db)
         parents1_db = yield M1.objects.set_db(self.db).all()
