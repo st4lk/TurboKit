@@ -13,7 +13,7 @@ Be aware
 
 * By defalut, `schematics.types.compound.ListType` defaults to None instead of empty list. If empty list is needed, provide `default=lambda: []` as init argument.
 
-* If declaring ListType(ModelReferenceType(SomeModel, reverse_delete_rule=NULLIFY)), keep in mind, that deletion of corresponding SomeModel will nullify entire ListType field, event if it contains relations to other SomeModels. Same behaviour, as in mongoengine
+* When declaring `ListType(ModelReferenceType(SomeModel, reverse_delete_rule=NULLIFY))`, keep in mind, that deletion of corresponding SomeModel will nullify entire ListType field, event if it contains relations to other SomeModels. Same behaviour, as in mongoengine
 
 * When you want to include mixin to your model, and mixin has declared model fields (instances of BaseType), this mixin must subclass schematics Model class. So fields will be handled by final model. And because of custom Options, mixins must go after BaseModel  
 Example:
