@@ -80,9 +80,6 @@ class ModelMeta(BaseModelMeta):
         if not attrs['_options'].namespace:
             attrs['_options'].namespace = name.replace("Model", "").lower()
 
-        for attr, value in attrs.iteritems():
-            setattr(new_class, attr, value)
-
         setattr(new_class, "objects", AsyncManager(new_class, attrs['_options'].namespace))
 
 
@@ -353,3 +350,9 @@ class BaseModel(SerializationMixin, SchematicsModel):
         if flatten_data:
             data = cls._flatten_data(data)
         return data
+
+    @classmethod
+    def register_delete_rule(cls, field_name, rule):
+        delete_rules = getattr(cls._options, 'delete_rules', {})
+        delete_rules[(cls, field_name)] = rule
+        cls._options['delete_rules'] = delete_rules
