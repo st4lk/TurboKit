@@ -93,6 +93,11 @@ class TestDbOperations(BaseTest):
             .skip(2).limit(5).count()
         self.assertEqual(count, 5)
 
+    @gen_test
+    def test_update(self):
+        # TODO
+        pass
+
     @gen.coroutine
     def _create_models(self, db, count=5):
         mdls = []
@@ -246,7 +251,6 @@ class TestReverseDeleteRulesSingleField(BaseTest):
 
     @gen_test
     def test_single_nullify(self):
-        return  # TODO
         M = models.ParentB
         child = yield self._create_child()
         parent = M(dict(child=child))

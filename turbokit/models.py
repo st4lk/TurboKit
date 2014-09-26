@@ -12,9 +12,9 @@ from schematics.models import (
     ModelOptions
 )
 
-from .utils import methodize, _document_registry
+from .utils import _document_registry
 from .transforms import to_mongo, to_primitive, convert
-from .types import ObjectIdType
+from .types import ObjectIdType, ModelReferenceType, DO_NOTHING
 from .managers import AsyncManager
 
 l = logging.getLogger(__name__)
@@ -77,10 +77,21 @@ class ModelMeta(BaseModelMeta):
 
     @classmethod
     def add_persistence_layer(cls, attrs, name, new_class):
+        super(ModelMeta, cls).add_persistence_layer(attrs, name, new_class)
         if not attrs['_options'].namespace:
             attrs['_options'].namespace = name.replace("Model", "").lower()
-
+        cls.set_delete_rules(attrs, new_class)
         setattr(new_class, "objects", AsyncManager(new_class, attrs['_options'].namespace))
+
+    @classmethod
+    def set_delete_rules(cls, attrs, new_class):
+        # TODO: respect models inheritance (parent classes)
+        for field_name, field in attrs['_fields'].iteritems():
+            if isinstance(field, ModelReferenceType):
+                delete_rule = getattr(field, 'reverse_delete_rule', DO_NOTHING)
+                if delete_rule != DO_NOTHING:
+                    field.model_class.register_delete_rule(new_class,
+                                                     field_name, delete_rule)
 
 
 class SerializationMixin(object):
@@ -148,7 +159,6 @@ class BaseModel(SerializationMixin, SchematicsModel):
 
     def __init__(self, *args, **kwargs):
         self.set_db(kwargs.pop('db', None))
-        self.update = methodize(self.__class__._update_instance, self)
         # TODO allow to set model instance for ModelReferenceType, not only id
         super(BaseModel, self).__init__(*args, **kwargs)
 
@@ -183,7 +193,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
         """
         Removes current instance from database.
         """
-        yield self.objects.set_db(db).remove({"_id": self.pk})
+        yield self.objects.set_db(db).remove({"_id": self.pk}, [self])
 
     @gen.coroutine
     def save(self, db=None, collection=None, ser=None):
@@ -239,39 +249,12 @@ class BaseModel(SerializationMixin, SchematicsModel):
                     self._id = result
                 return
 
-    @classmethod
     @gen.coroutine
-    def update(cls, db, query, ser, collection=None, update=None,
-            upsert=False, multi=False):
-        """
-        Update only given fields for object, found by query.
-        Other args are the same, as in pymongo.update:
-        http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update
-        """
-        c = cls.check_collection(collection)
-        data = cls.get_data_for_update(ser)
-        data = {"$set": data}
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].update,
-                    query, data, upsert=upsert, multi=multi)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'update')
-                if exceed:
-                    raise e
-            else:
-                l.debug("Update result: {0}".format(result))
-                raise gen.Return(result)
-
-    @gen.coroutine
-    def _update_instance(self, db, ser, **kwargs):
-        """
-        This method will be invoked, when `.update` is called from model instance.
-        This is a helper for cls.update, but it will pass query {"_id": self.id}
-        automatically.
-        """
-        result = yield self.__class__.update(db, {"_id": self.pk}, ser, **kwargs)
+    def update(self, db, data, raw=False, **kwargs):
+        if not raw:
+            data = {"$set": data}
+        result = yield self.objects.set_db(db).update({"_id": self.pk},
+            data, **kwargs)
         raise gen.Return(result)
 
     @classmethod
@@ -352,7 +335,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
         return data
 
     @classmethod
-    def register_delete_rule(cls, field_name, rule):
+    def register_delete_rule(cls, cls_tobe_deleted, field_name, rule):
         delete_rules = getattr(cls._options, 'delete_rules', {})
-        delete_rules[(cls, field_name)] = rule
-        cls._options['delete_rules'] = delete_rules
+        delete_rules[(cls_tobe_deleted, field_name)] = rule
+        cls._options.delete_rules = delete_rules

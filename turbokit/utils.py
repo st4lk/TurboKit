@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from types import MethodType
 from .errors import NotRegistered
 
 _document_registry = {}
@@ -27,7 +25,3 @@ def get_simple_model():
     """ To avoid circular imports """
     from .models import SimpleMongoModel
     return SimpleMongoModel
-
-
-def methodize(func, instance):
-    return MethodType(func, instance, instance.__class__)

@@ -8,6 +8,7 @@ from tornado import gen
 from schematics.models import Model as SchematicsModel
 from pymongo.errors import OperationFailure
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
+from .types import NULLIFY, CASCADE, DENY, PULL
 
 l = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class AsyncManager(PrefetchRelatedMixin):
         return AsyncManager(self.cls, self.collection, db)
 
     @gen.coroutine
-    def get(self, query=None, return_raw=False):
+    def get(self, query, return_raw=False):
         # TODO: add reconnects here and in other methods
         query = self.process_query(query)
         response = yield self.db[self.collection].find_one(query)
@@ -41,12 +42,37 @@ class AsyncManager(PrefetchRelatedMixin):
         raise gen.Return(result)
 
     @gen.coroutine
-    def remove(self, query, **kwargs):
+    def update(self, query, raw_data, upsert=False, multi=False):
+        query = self.process_query(query)
+        result = yield self.db[self.collection].update(query, raw_data,
+            upsert=upsert, multi=multi)
+        if result['ok'] != 1:
+            # TODO how to catch this exception?
+            raise OperationFailure(result, code=result['ok'])
+        raise gen.Return(result)
+
+    @gen.coroutine
+    def remove(self, query, docs_tobe_deleted=None, **kwargs):
         # TODO respect reverse_delete_rule
         query = self.process_query(query)
-        response = yield self.db[self.collection].remove(query, **kwargs)
-        if response['ok'] != 1:
-            raise OperationFailure(response, code=response['ok'])
+        if not docs_tobe_deleted:
+            # TODO fetch objects before deleting from database
+            docs_tobe_deleted = []
+        for doc in docs_tobe_deleted:
+            delete_rules = getattr(doc._options, 'delete_rules', {})
+            for rule_entry in delete_rules:
+                parent_doc_cls, parent_field_name = rule_entry
+                rule = delete_rules[rule_entry]
+                if rule == NULLIFY:
+                    parent_doc_cls.objects.set_db(self.db).update(
+                        {parent_field_name: doc.pk},
+                        {"$unset": {parent_field_name: ""}})
+
+        result = yield self.db[self.collection].remove(query, **kwargs)
+        if result['ok'] != 1:
+            # TODO how to catch this exception?
+            raise OperationFailure(result, code=result['ok'])
+        raise gen.Return(result)
 
     @gen.coroutine
     def all(self):
@@ -71,6 +97,7 @@ class AsyncManager(PrefetchRelatedMixin):
         result = yield self.db[self.collection].aggregate(pipeline, **kwargs)
         if 'cursor' not in kwargs:
             if result['ok'] != 1:
+                # TODO how to catch this exception?
                 raise OperationFailure(result, code=result['ok'])
             result = result['result']
         raise gen.Return(result)

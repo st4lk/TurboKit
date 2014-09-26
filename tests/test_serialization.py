@@ -84,7 +84,8 @@ class TestSerializationCompound(BaseSerializationTest):
                 {'type_string': 'ss1', 'type_int': 1},
             ]
         }
-        yield m.__class__.update(self.db, {"_id": m.pk}, updated_json_for_cls)
+        yield m.objects.set_db(self.db).update(
+            {"_id": m.pk}, {"$set": updated_json_for_cls})
         # check, that model from db corresponds to updated_json_for_cls data
         json_from_db = yield self._get_json_from_db_and_check_count(m)
         expected_cls_json = dict(expected_json)
