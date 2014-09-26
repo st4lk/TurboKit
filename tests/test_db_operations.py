@@ -262,7 +262,6 @@ class TestReverseDeleteRulesSingleField(BaseTest):
 
     @gen_test
     def test_single_cascade(self):
-        return  # TODO
         M = models.ParentC
         child = yield self._create_child()
         for i in range(2):
@@ -274,7 +273,6 @@ class TestReverseDeleteRulesSingleField(BaseTest):
 
     @gen_test
     def test_single_deny(self):
-        return  # TODO
         M = models.ParentD
         child = yield self._create_child()
         parent = M(dict(child=child))

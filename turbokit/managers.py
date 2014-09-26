@@ -9,6 +9,7 @@ from schematics.models import Model as SchematicsModel
 from pymongo.errors import OperationFailure
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 from .types import NULLIFY, CASCADE, DENY, PULL
+from .errors import OperationError
 
 l = logging.getLogger(__name__)
 
@@ -60,6 +61,19 @@ class AsyncManager(PrefetchRelatedMixin):
             docs_tobe_deleted = []
         for doc in docs_tobe_deleted:
             delete_rules = getattr(doc._options, 'delete_rules', {})
+            # check DENY rule first. If even one match deny rule,
+            # deny full remove action
+            for rule_entry in delete_rules:
+                parent_doc_cls, parent_field_name = rule_entry
+                rule = delete_rules[rule_entry]
+                if rule == DENY:
+                    cnt = yield parent_doc_cls.objects.set_db(self.db).filter(
+                        {parent_field_name: doc.pk}).count()
+                    if cnt > 0:
+                        raise OperationError(
+                            "Could not delete document ({0}.{1} refers to it)"
+                            .format(parent_doc_cls.__name__, parent_field_name))
+            # now check other delete rules
             for rule_entry in delete_rules:
                 parent_doc_cls, parent_field_name = rule_entry
                 rule = delete_rules[rule_entry]
@@ -67,6 +81,9 @@ class AsyncManager(PrefetchRelatedMixin):
                     parent_doc_cls.objects.set_db(self.db).update(
                         {parent_field_name: doc.pk},
                         {"$unset": {parent_field_name: ""}})
+                elif rule == CASCADE:
+                    parent_doc_cls.objects.set_db(self.db).remove(
+                        {parent_field_name: doc.pk})
 
         result = yield self.db[self.collection].remove(query, **kwargs)
         if result['ok'] != 1:
