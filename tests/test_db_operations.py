@@ -392,8 +392,9 @@ class TestReverseDeleteRulesListField(BaseTest):
             self.assertEqual(p_db.childs, map(lambda x: x.pk, clds))
 
     @gen.coroutine
-    def _create_child(self):
-        child = models.ChildA()
+    def _create_child(self, model=None):
+        model = model or models.ChildA
+        child = model()
         yield child.save(self.db)
         raise gen.Return(child)
 
@@ -446,3 +447,33 @@ class TestReverseDeleteRulesListField(BaseTest):
     @gen_test
     def test_list_pull_from_queryset(self):
         yield self._check_pull(from_queryset=True)
+
+    @gen_test
+    def test_delete_rule_mixin_own_field(self):
+        M = models.ParentK
+        parent, guru, friends = yield self._create_model_with_mixin(M)
+        yield parent.save(self.db)
+        yield guru.remove(self.db)
+        p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
+        self.assertEqual(p_db.guru, None)
+
+    @gen_test
+    def test_delete_rule_mixin_field(self):
+        M = models.ParentK
+        parent, guru, friends = yield self._create_model_with_mixin(M)
+        yield parent.save(self.db)
+        yield friends[0].remove(self.db)
+        p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
+        self.assertEqual(p_db.guru, guru.pk)
+        self.assertEqual(len(p_db.friends), 1)
+        self.assertEqual(p_db.friends[0], friends[1].pk)
+
+    @gen.coroutine
+    def _create_model_with_mixin(self, model):
+        friends = []
+        for i in range(2):
+            friend = yield self._create_child(models.ChildB)
+            friends.append(friend)
+        guru = yield self._create_child(models.ChildC)
+        parent = model(dict(friends=friends, guru=guru))
+        raise gen.Return((parent, guru, friends))

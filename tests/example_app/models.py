@@ -6,6 +6,7 @@ from turbokit.types import (ModelReferenceType, GenericModelReferenceType,
 from schematics import types
 from schematics.types import compound
 from schematics.types.serializable import serializable
+from schematics.models import Model
 
 
 class SimpleModel(BaseModel):
@@ -125,6 +126,25 @@ class ParentH(BaseModel):
 
 class ParentI(BaseModel):
     childs = compound.ListType(ModelReferenceType(ChildA, reverse_delete_rule=PULL))
+
+
+class ChildB(BaseModel):
+    pass
+
+
+class ChildC(BaseModel):
+    pass
+
+
+class ParentMixin(Model):
+    """
+    Need to subclass schematics.Model, so declared fields will be collected
+    """
+    friends = compound.ListType(ModelReferenceType(ChildB, reverse_delete_rule=PULL))
+
+
+class ParentK(BaseModel, ParentMixin):
+    guru = ModelReferenceType(ChildC, reverse_delete_rule=NULLIFY)
 
 
 class SchematicsFieldsModel(BaseModel):
