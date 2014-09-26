@@ -63,6 +63,18 @@ class ModelReferenceType(ObjectIdType):
         """
         Keep name `field`, as schematics.types.compound.MultiType
         use this name in init_compound_field
+
+        Use the `reverse_delete_rule` to handle what should happen if the document
+        the field is referencing is deleted. Embedded documents, DictFields and
+        MapFields do not support reverse_delete_rules.
+
+        The options are:
+
+          * DO_NOTHING  - don't do anything (default).
+          * NULLIFY     - Updates the reference to null. ListType will be also nullifed.
+          * CASCADE     - Deletes the documents associated with the reference.
+          * DENY        - Prevent the deletion of the reference object.
+          * PULL        - Pull the reference from a ListType of references
         """
         self._model_class = field
         self.reverse_delete_rule = reverse_delete_rule

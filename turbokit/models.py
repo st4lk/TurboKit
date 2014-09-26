@@ -11,6 +11,7 @@ from schematics.models import (
     Model as SchematicsModel,
     ModelOptions
 )
+from schematics.types.compound import ListType
 
 from .utils import _document_registry
 from .transforms import to_mongo, to_primitive, convert
@@ -87,6 +88,7 @@ class ModelMeta(BaseModelMeta):
     def set_delete_rules(cls, attrs, new_class):
         # TODO: respect models inheritance (parent classes)
         for field_name, field in attrs['_fields'].iteritems():
+            field = field.field if isinstance(field, ListType) else field
             if isinstance(field, ModelReferenceType):
                 delete_rule = getattr(field, 'reverse_delete_rule', DO_NOTHING)
                 if delete_rule != DO_NOTHING:

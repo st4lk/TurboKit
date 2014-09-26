@@ -4,8 +4,10 @@ Base code is taken from https://github.com/wsantos/motorm
 """
 import logging
 from bson.objectid import ObjectId
+# from bson.son import SON
 from tornado import gen
 from schematics.models import Model as SchematicsModel
+# from schematics.types.compound import ListType
 from pymongo.errors import OperationFailure
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 from .types import NULLIFY, CASCADE, DENY, PULL
@@ -54,15 +56,14 @@ class AsyncManager(PrefetchRelatedMixin):
 
     @gen.coroutine
     def remove(self, query, docs_tobe_deleted=None, **kwargs):
-        # TODO respect reverse_delete_rule
         query = self.process_query(query)
         if not docs_tobe_deleted:
-            # TODO fetch objects before deleting from database
-            docs_tobe_deleted = []
+            # TODO use next or fetch with skip and limit
+            docs_tobe_deleted = yield self.filter(query).all()
         for doc in docs_tobe_deleted:
             delete_rules = getattr(doc._options, 'delete_rules', {})
-            # check DENY rule first. If even one match deny rule,
-            # deny full remove action
+            # check DENY rule first. If even one deny rule is matched,
+            # deny entire remove action
             for rule_entry in delete_rules:
                 parent_doc_cls, parent_field_name = rule_entry
                 rule = delete_rules[rule_entry]
@@ -80,7 +81,7 @@ class AsyncManager(PrefetchRelatedMixin):
                 if rule == NULLIFY:
                     parent_doc_cls.objects.set_db(self.db).update(
                         {parent_field_name: doc.pk},
-                        {"$unset": {parent_field_name: ""}})
+                        {"$unset": {parent_field_name: ""}}, multi=True)
                 elif rule == CASCADE:
                     parent_doc_cls.objects.set_db(self.db).remove(
                         {parent_field_name: doc.pk})

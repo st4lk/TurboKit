@@ -308,7 +308,6 @@ class TestReverseDeleteRulesListField(BaseTest):
 
     @gen.coroutine
     def _check_nullify(self, from_queryset=False):
-        return  # TODO
         M = models.ParentF
         childs, parent = yield self._create_models(M)
         if from_queryset:
@@ -320,12 +319,7 @@ class TestReverseDeleteRulesListField(BaseTest):
             yield childs_to_delete[0].remove(self.db)
         parents_db = yield M.objects.set_db(self.db).all()
         self.assertEqual(len(parents_db), 1)
-        self.assertEqual(len(parents_db[0].childs), len(childs))
-        for c_db, c_was in zip(parents_db[0].childs, childs):
-            if c_was in childs_to_delete:
-                self.assertEqual(c_db, None)
-            else:
-                self.assertEqual(c_db, c_was.pk)
+        self.assertEqual(parents_db[0].childs, None)
 
     @gen.coroutine
     def _check_cascade(self, from_queryset=False):
@@ -395,6 +389,22 @@ class TestReverseDeleteRulesListField(BaseTest):
         for p_db, clds in [[parents1_db[0], childs1[1:]], [parents2_db[0], childs2[1:]]]:
             self.assertEqual(p_db.childs, map(lambda x: x.pk, clds))
 
+    @gen.coroutine
+    def _create_child(self):
+        child = models.ChildA()
+        yield child.save(self.db)
+        raise gen.Return(child)
+
+    @gen.coroutine
+    def _create_models(self, parent_class):
+        childs = []
+        for i in range(3):
+            child = yield self._create_child()
+            childs.append(child)
+        parent = parent_class(dict(childs=childs))
+        yield parent.save(self.db)
+        raise gen.Return((childs, parent))
+
     @gen_test
     def test_list_do_nothing_from_object(self):
         yield self._check_do_nothing(from_queryset=False)
@@ -434,19 +444,3 @@ class TestReverseDeleteRulesListField(BaseTest):
     @gen_test
     def test_list_pull_from_queryset(self):
         yield self._check_pull(from_queryset=True)
-
-    @gen.coroutine
-    def _create_child(self):
-        child = models.ChildA()
-        yield child.save(self.db)
-        raise gen.Return(child)
-
-    @gen.coroutine
-    def _create_models(self, parent_class):
-        childs = []
-        for i in range(3):
-            child = yield self._create_child()
-            childs.append(child)
-        parent = parent_class(dict(childs=childs))
-        yield parent.save(self.db)
-        raise gen.Return((childs, parent))
