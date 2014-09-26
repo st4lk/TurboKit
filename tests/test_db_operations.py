@@ -367,11 +367,12 @@ class TestReverseDeleteRulesListField(BaseTest):
 
     @gen.coroutine
     def _check_pull(self, from_queryset=False):
-        return  # TODO
         M1 = models.ParentE
         M2 = models.ParentI
         childs1, parent1 = yield self._create_models(M1)
         childs2, parent2 = yield self._create_models(M2)
+        childs3, parent3 = yield self._create_models(M2)
+        yield parent3.update(self.db, {"$push": {"childs": childs2[0].pk}}, raw=True)
         if from_queryset:
             childs_to_delete = childs1[:1] + childs2[:1]
             yield models.ChildA.objects.set_db(self.db).remove(
@@ -383,8 +384,11 @@ class TestReverseDeleteRulesListField(BaseTest):
         parents1_db = yield M1.objects.set_db(self.db).all()
         parents2_db = yield M2.objects.set_db(self.db).all()
         self.assertEqual(len(parents1_db), 1)
-        self.assertEqual(len(parents2_db), 1)
-        for p_db, clds in [[parents1_db[0], childs1[1:]], [parents2_db[0], childs2[1:]]]:
+        self.assertEqual(len(parents2_db), 2)
+        for p_db, clds in [
+                [parents1_db[0], childs1],
+                [parents2_db[0], childs2[1:]],
+                [parents2_db[1], childs3]]:
             self.assertEqual(p_db.childs, map(lambda x: x.pk, clds))
 
     @gen.coroutine

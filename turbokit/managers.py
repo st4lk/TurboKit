@@ -85,6 +85,11 @@ class AsyncManager(PrefetchRelatedMixin):
                 elif rule == CASCADE:
                     parent_doc_cls.objects.set_db(self.db).remove(
                         {parent_field_name: doc.pk})
+                elif rule == PULL:
+                    parent_doc_cls.objects.set_db(self.db).update(
+                        {parent_field_name: doc.pk},
+                        {"$pull": {parent_field_name: doc.pk}},
+                        multi=True)
 
         result = yield self.db[self.collection].remove(query, **kwargs)
         if result['ok'] != 1:
