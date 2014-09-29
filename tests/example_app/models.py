@@ -163,6 +163,14 @@ class ParentK(BaseModel, ParentMixin):
     guru = ModelReferenceType(ChildC, reverse_delete_rule=NULLIFY)
 
 
+class ParentBase(BaseModel):
+    friends = compound.ListType(ModelReferenceType(ChildB, reverse_delete_rule=PULL))
+
+
+class ParentSublcassed(ParentBase):
+    guru = ModelReferenceType(ChildC, reverse_delete_rule=NULLIFY)
+
+
 class SchematicsFieldsModel(BaseModel):
     # base fields
     type_string = types.StringType()

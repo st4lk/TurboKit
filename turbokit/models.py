@@ -86,7 +86,6 @@ class ModelMeta(BaseModelMeta):
 
     @classmethod
     def set_delete_rules(cls, attrs, new_class):
-        # TODO: respect models inheritance (parent classes)
         for field_name, field in attrs['_fields'].iteritems():
             field = field.field if isinstance(field, ListType) else field
             if isinstance(field, ModelReferenceType):

@@ -449,24 +449,24 @@ class TestReverseDeleteRulesListField(BaseTest):
         yield self._check_pull(from_queryset=True)
 
     @gen_test
-    def test_delete_rule_mixin_own_field(self):
-        M = models.ParentK
-        parent, guru, friends = yield self._create_model_with_mixin(M)
-        yield parent.save(self.db)
-        yield guru.remove(self.db)
-        p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
-        self.assertEqual(p_db.guru, None)
+    def test_delete_rule_inheritance_own_field(self):
+        for M in [models.ParentK, models.ParentSublcassed]:
+            parent, guru, friends = yield self._create_model_with_mixin(M)
+            yield parent.save(self.db)
+            yield guru.remove(self.db)
+            p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
+            self.assertEqual(p_db.guru, None)
 
     @gen_test
-    def test_delete_rule_mixin_field(self):
-        M = models.ParentK
-        parent, guru, friends = yield self._create_model_with_mixin(M)
-        yield parent.save(self.db)
-        yield friends[0].remove(self.db)
-        p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
-        self.assertEqual(p_db.guru, guru.pk)
-        self.assertEqual(len(p_db.friends), 1)
-        self.assertEqual(p_db.friends[0], friends[1].pk)
+    def test_delete_rule_inheritance_field(self):
+        for M in [models.ParentK, models.ParentSublcassed]:
+            parent, guru, friends = yield self._create_model_with_mixin(M)
+            yield parent.save(self.db)
+            yield friends[0].remove(self.db)
+            p_db = yield M.objects.set_db(self.db).get({'id': parent.pk})
+            self.assertEqual(p_db.guru, guru.pk)
+            self.assertEqual(len(p_db.friends), 1)
+            self.assertEqual(p_db.friends[0], friends[1].pk)
 
     @gen.coroutine
     def _create_model_with_mixin(self, model):
