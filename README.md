@@ -64,21 +64,26 @@ Currently implemented signals:
 * `pre_remove`
 * `post_remove`
 
-All signal receivers must be async (wrapped with `tornado.gen.coroutine`).
+All signal receivers must be wrapped with `tornado.gen.coroutine`
 
 Example:
 
     import motor
     from tornado import gen
     from myapp.models import SomeModel
+    from turbokit import signals
 
-
-    m = SomeModel()
 
     @gen.coroutine
     def do_before_save(sender, document, **kwargs):
         document.title = 'auto title'
 
+    signals.post_remove.connect(do_before_save, sender=SomeModel)
+
     db = motor.MotorClient(host='127.0.0.1', port=27017)['app_database']
 
-    yield m.save(db)  # do_before_save was fired
+    # in your request handler:
+    @gen.coroutine
+    def get(self, **kwargs):
+        m = SomeModel()
+        yield m.save(db)  # do_before_save was fired
