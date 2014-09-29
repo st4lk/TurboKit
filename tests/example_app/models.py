@@ -13,6 +13,11 @@ class SimpleModel(BaseModel):
     title = types.StringType(default='No name')
     secret = types.StringType()
 
+    class Options:
+        indexes = (
+            {'fields': 'title'},
+        )
+
     def __unicode__(self):
         return self.title
 
@@ -28,6 +33,11 @@ class User(BaseModel):
 class Event(BaseModel):
     title = types.StringType()
     user = ModelReferenceType(User)
+
+    class Options:
+        indexes = (
+            {'fields': ('title', 'user.name')},
+        )
 
 
 class Record(BaseModel):
@@ -78,6 +88,11 @@ class Plan(BaseModel):
 class Topic(BaseModel):
     title = types.StringType(default='best')
     ancestor = ModelReferenceType('self')
+
+    class Options:
+        indexes = (
+            {'fields': 'title', 'unique': True},
+        )
 
 
 class Action(BaseModel):

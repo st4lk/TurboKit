@@ -12,6 +12,7 @@ from schematics.models import (
     ModelOptions
 )
 from schematics.types.compound import ListType
+from copy import deepcopy
 
 from .utils import _document_registry
 from .transforms import to_mongo, to_primitive, convert
@@ -24,7 +25,7 @@ MAX_FIND_LIST_LEN = 100
 
 
 class ExtendedModelOptions(ModelOptions):
-    def __init__(self, klass, namespace=None, roles=None, serialize_when_none=True, **other_options):
+    def __init__(self, klass, namespace=None, roles=None, serialize_when_none=True, indexes=None, **other_options):
         """Extended version of original `ModelOptions`. Designed to store
         more persistence layer options.
 
@@ -37,6 +38,7 @@ class ExtendedModelOptions(ModelOptions):
         as standalone params, not just as **kwargs.
         """
         super(ExtendedModelOptions, self).__init__(klass, namespace, roles, serialize_when_none)
+        self.indexes = indexes or tuple()
         for name, value in other_options.iteritems():
             setattr(self, name, value)
 
@@ -343,3 +345,17 @@ class BaseModel(SerializationMixin, SchematicsModel):
         delete_rules = getattr(cls._options, 'delete_rules', {})
         delete_rules[(cls_tobe_deleted, field_name)] = rule
         cls._options.delete_rules = delete_rules
+
+    @classmethod
+    @gen.coroutine
+    def ensure_index(cls, db):  # TODO: check indexes iterability and index dictionarity =)
+        for index in deepcopy(cls._options.indexes):
+            unique = index.pop('unique', False)
+            cache_for = index.pop('cache_for', index.pop('ttl', 300))  # The `ttl` has been deprecated since pymongo 2.3
+            fields = index.pop('fields', tuple())
+
+            if not isinstance(fields, basestring):
+                fields = map(lambda field: (field, 1) if isinstance(field, basestring) else field, fields)
+
+            l.debug("Creating index for {fields}".format(fields=str(fields)))
+            yield db[cls._options.namespace].ensure_index(fields, cache_for, unique=unique, **index)
