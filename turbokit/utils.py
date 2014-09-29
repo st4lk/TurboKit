@@ -15,7 +15,7 @@ def get_model(name):
     return doc
 
 
-def get_base_model():
+def import_base_model():
     """ To avoid circular imports """
     from .models import BaseModel
     return BaseModel

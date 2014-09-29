@@ -101,6 +101,30 @@ class TestDbOperations(BaseTest):
         # TODO
         pass
 
+    @gen_test
+    def test_insert(self):
+        M = models.SimpleModel
+        m = M(dict(title='t1', secret='s1'))
+        m_id = yield M.objects.set_db(self.db).insert(m)
+        m_from_db = yield M.objects.set_db(self.db).all()
+        self.assertEqual(len(m_from_db), 1)
+        self.assertEqual(m_from_db[0].pk, m_id)
+        self.assertEqual(m_from_db[0].secret, 's1')
+
+    @gen_test
+    def test_bulk_insert(self):
+        M = models.SimpleModel
+        mdls = []
+        for i in range(5):
+            mdls.append(M(dict(title='t{0}'.format(i), secret='s{0}'.format(i))))
+        m_ids = yield M.objects.set_db(self.db).insert(mdls)
+        mdls_from_db = yield M.objects.set_db(self.db).all()
+        self.assertEqual(len(mdls_from_db), 5)
+        for m, m_db in zip(mdls, sorted(mdls_from_db, key=lambda d: d.title)):
+            self.assertEqual(m.secret, m_db.secret)
+        for m_id, m_db in zip(sorted(m_ids), sorted(mdls_from_db, key=lambda d: d.pk)):
+            self.assertEqual(m_id, m_db.pk)
+
     @gen.coroutine
     def _create_models(self, db, count=5):
         mdls = []
@@ -345,9 +369,14 @@ class TestReverseDeleteRulesListField(BaseTest):
             yield models.ChildA.objects.set_db(self.db).remove(
                 {"id": {"$in": map(lambda x: x.pk, childs_to_delete)}})
         else:
-            childs1, _ = yield self._create_models(M)
+            childs1, p1 = yield self._create_models(M)
+            l.info("Saved parent1 {0}".format(p1.pk))
+            l.info("Saved childs1 {0}".format(map(lambda chd: str(chd.pk), childs1)))
             childs_exist, parent_exist = yield self._create_models(M)
+            l.info("Saved parent2 {0}".format(parent_exist.pk))
+            l.info("Saved childs2 {0}".format(map(lambda chd: str(chd.pk), childs_exist)))
             childs_to_delete = childs1[:1]
+            l.info("childs_to_delete {0}".format(map(lambda chd: str(chd.pk), childs_to_delete)))
             yield childs_to_delete[0].remove(self.db)
         parents_db = yield M.objects.set_db(self.db).all()
         l.info("Parents in database: {0}".format(map(lambda p: p.pk, parents_db)))

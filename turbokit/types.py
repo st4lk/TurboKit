@@ -7,7 +7,7 @@ from schematics.exceptions import ValidationError, ConversionError
 from schematics.transforms import export_loop
 from schematics.types import TypeMeta, BaseType, DateTimeType
 from bson.objectid import ObjectId
-from .utils import get_base_model, get_simple_model, get_model
+from .utils import import_base_model, get_simple_model, get_model
 
 
 # Delete rules
@@ -112,18 +112,18 @@ class ModelReferenceType(ObjectIdType):
         return self.model_class.fields
 
     def validate_id(self, value):
-        if isinstance(value, get_base_model()):
+        if isinstance(value, import_base_model()):
             # TODO: validate full model in separate method, validate_model
             value = value.pk
         return super(ModelReferenceType, self).validate_id(value)
 
     def to_mongo(self, value, context=None):
-        if isinstance(value, get_base_model()):
+        if isinstance(value, import_base_model()):
             value = value.pk
         return ObjectIdWithLen(value)
 
     def to_native(self, value, context=None):
-        if isinstance(value, get_base_model()):
+        if isinstance(value, import_base_model()):
             return value
         return super(ModelReferenceType, self).to_native(value, context=context)
 
@@ -150,7 +150,7 @@ class DynamicType(BaseType):
     # TODO: process BaseModel
 
     def validate_dynamic(self, value):
-        if isinstance(value, get_base_model()):
+        if isinstance(value, import_base_model()):
             raise ValidationError("Saving instance of BaseModel currently not implemented")
         if hasattr(value, 'validate'):
             # TODO: pass partial, strict. Look for schematics.modelsModel.validate
@@ -198,7 +198,7 @@ class GenericModelReferenceType(ObjectIdType):
         Currently only already saved model objects can be saved as generic
         relation.
         """
-        base_model = get_base_model()
+        base_model = import_base_model()
         _id = None
         if isinstance(value, base_model):
             if not value.pk:
@@ -221,14 +221,14 @@ class GenericModelReferenceType(ObjectIdType):
         return super(GenericModelReferenceType, self).validate_id(_id)
 
     def to_mongo(self, value, context=None):
-        if isinstance(value, get_base_model()):
+        if isinstance(value, import_base_model()):
             value = {"_id": value.pk, "_cls": value._cls_key}
         elif isinstance(value, ObjectId):
             value = {"_id": value, "_cls": self._cls}
         return value
 
     def to_native(self, value, context=None):
-        base_model = get_base_model()
+        base_model = import_base_model()
         if isinstance(value, base_model):
             return value
         if isinstance(value, dict):

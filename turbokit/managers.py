@@ -54,6 +54,36 @@ class AsyncManager(PrefetchRelatedMixin):
         raise gen.Return(result)
 
     @gen.coroutine
+    def insert(self, doc_or_docs, load_bulk=False, **kwargs):
+        """bulk insert documents
+
+        :param doc_or_docs: a document or list of documents to be inserted
+        :param load_bulk (optional): If True returns the list of document
+            instances
+
+        By default returns  ObjectIds, set ``load_bulk`` to True to
+        return document instances.
+        """
+        return_one = False
+        if isinstance(doc_or_docs, (list, tuple)):
+            docs = doc_or_docs
+        else:
+            return_one = True
+            docs = [doc_or_docs]
+        raw = []
+        for doc in docs:
+            if not isinstance(doc, self.cls):
+                raise OperationError(u"Some documents inserted aren't "
+                    "instances of {0}".self.cls)
+            raw.append(doc.to_mongo())
+        ids = yield self.db[self.collection].insert(raw, **kwargs)
+        if not load_bulk:
+            result = return_one and ids[0] or ids
+        else:
+            NotImplementedError()  # TODO
+        raise gen.Return(result)
+
+    @gen.coroutine
     def remove(self, query, docs_tobe_deleted=None, **kwargs):
         query = self.process_query(query)
         if not docs_tobe_deleted:
