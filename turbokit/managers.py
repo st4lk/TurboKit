@@ -4,14 +4,13 @@ Base code is taken from https://github.com/wsantos/motorm
 """
 import logging
 from bson.objectid import ObjectId
-# from bson.son import SON
 from tornado import gen
 from schematics.models import Model as SchematicsModel
-# from schematics.types.compound import ListType
 from pymongo.errors import OperationFailure
 from .cursors import AsyncManagerCursor, PrefetchRelatedMixin
 from .types import NULLIFY, CASCADE, DENY, PULL
 from .errors import OperationError
+from .signals import pre_remove, post_remove
 
 l = logging.getLogger(__name__)
 
@@ -61,6 +60,7 @@ class AsyncManager(PrefetchRelatedMixin):
             # TODO use next or fetch with skip and limit
             docs_tobe_deleted = yield self.filter(query).all()
         for doc in docs_tobe_deleted:
+            yield pre_remove.send(doc.__class__, document=doc)
             delete_rules = getattr(doc._options, 'delete_rules', {})
             # check DENY rule first. If even one deny rule is matched,
             # deny entire remove action
@@ -95,6 +95,8 @@ class AsyncManager(PrefetchRelatedMixin):
         if result['ok'] != 1:
             # TODO how to catch this exception?
             raise OperationFailure(result, code=result['ok'])
+        for doc in docs_tobe_deleted:
+            yield post_remove.send(doc.__class__, document=doc)
         raise gen.Return(result)
 
     @gen.coroutine

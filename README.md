@@ -49,3 +49,28 @@ Example:
 * To embed model (not a reference to model), subclass `turbokit.models.SimpleMongoModel`
 
 * By default, `turbokit.types.LocaleDateTimeType` use utc timezone to store datetime in database. If you need another behaviour (for example, store it in server's timezone), declare it at model level in `get_database_timezone` static method. Also you have to do it in your embedded models (TODO: automatically take timezone in embedded model from parent model).
+
+
+Usage
+=====
+
+Sigals
+------
+
+Currently implemented signals are:
+
+* `pre_save`
+* `post_save`
+* `pre_remove`
+* `post_remove`
+
+All signal receivers must be async (wrapped with `tornado.gen.coroutine`).
+
+Example:
+
+
+models = SomeModel()
+
+@gen.coroutine
+def do_before_save(sender, document, **kwargs):
+    document.title = 'auto title'

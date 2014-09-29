@@ -17,6 +17,7 @@ from .utils import _document_registry
 from .transforms import to_mongo, to_primitive, convert
 from .types import ObjectIdType, ModelReferenceType, DO_NOTHING
 from .managers import AsyncManager
+from .signals import pre_save, post_save
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -205,6 +206,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
             obj = ExampleModel({"first_name": "Vasya"})
             yield obj.save(self.db)
         """
+        yield pre_save.send(self.__class__, document=self)
         self.validate()
         db = db or self.db
         c = self.check_collection(collection)
@@ -220,6 +222,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
             else:
                 if result:
                     self._id = result
+                yield post_save.send(self.__class__, document=self)
                 return
 
     @gen.coroutine
