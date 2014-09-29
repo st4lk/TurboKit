@@ -88,6 +88,22 @@ class ActionDefaultDate(BaseModel):
     start_at = LocaleDateTimeType(default=datetime.now)
 
 
+class ActionMixin(Model):
+    start_at = LocaleDateTimeType()
+
+
+class ActionWithMixin(BaseModel, ActionMixin):
+    title = types.StringType(default="morning")
+
+
+class ActionBase(BaseModel):
+    start_at = LocaleDateTimeType()
+
+
+class ActionSubclassed(ActionBase):
+    title = types.StringType(default="pool")
+
+
 class ChildA(BaseModel):
     pass
 

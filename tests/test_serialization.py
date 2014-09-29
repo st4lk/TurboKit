@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from tornado.testing import gen_test
 from tornado import gen
 from example_app.models import (SchematicsFieldsModel, SimpleModel, User,
-    Event, Record, Transaction, Page, Topic, Action, ActionDefaultDate)
+    Event, Record, Transaction, Page, Topic, Action, ActionDefaultDate,
+    ActionWithMixin, ActionSubclassed)
 from .base import BaseSerializationTest, BaseTest
 
 
@@ -365,72 +366,79 @@ class TestLocaleDateTimeType(BaseTest):
         self.date_tz_db = self.date_tz_local.astimezone(Action.get_database_timezone())
         self.eastern_tz = pytz.timezone('US/Eastern')
         self.date_tz_estn = self.date_tz_local.astimezone(self.eastern_tz)
+        self.model_classes = [Action, ActionWithMixin, ActionSubclassed]
         super(TestLocaleDateTimeType, self).setUp()
 
     @gen_test
     def test_save_naive_datetime(self):
-        a = Action(dict(start_at=self.naive_now))
-        a_from_db = yield self._get_action_from_db(a)
-        self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
+        for model_class in self.model_classes:
+            a = model_class(dict(start_at=self.naive_now))
+            a_from_db = yield self._get_action_from_db(a, model_class)
+            self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
 
     @gen_test
     def test_save_localized_datetime(self):
-        dt_eastern = self.date_tz_local.astimezone(self.eastern_tz)
-        a = Action(dict(start_at=dt_eastern))
-        a_from_db = yield self._get_action_from_db(a)
-        self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
+        for model_class in self.model_classes:
+            dt_eastern = self.date_tz_local.astimezone(self.eastern_tz)
+            a = model_class(dict(start_at=dt_eastern))
+            a_from_db = yield self._get_action_from_db(a, model_class)
+            self.assertDateTimeEqual(a_from_db.start_at, self.date_tz_db)
 
     @gen_test
     def test_locale_serialize_to(self):
-        a = Action(dict(start_at=self.naive_now))
-        a_from_db = yield self._get_action_from_db(a)
-        # if not timezone specified, render as local timezone
-        a_json = a_from_db.to_primitive()
-        # drop microseconds (look assertDateTimeEqual for details)
-        a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
-        expected_dt = self._drop_micorseconds(self.date_tz_local.isoformat())
-        self.assertEqual(a_json, {
-            'id': str(a.pk),
-            'start_at': expected_dt,
-        })
-        # specify timezone
-        a_json = a_from_db.to_primitive(timezone=self.eastern_tz)
-        a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
-        expected_dt = self._drop_micorseconds(self.date_tz_estn.isoformat())
-        self.assertEqual(a_json, {
-            'id': str(a.pk),
-            'start_at': expected_dt,
-        })
+        for model_class in self.model_classes:
+            a = model_class(dict(start_at=self.naive_now))
+            a_from_db = yield self._get_action_from_db(a, model_class)
+            # if not timezone specified, render as local timezone
+            a_json = a_from_db.to_primitive()
+            # drop microseconds (look assertDateTimeEqual for details)
+            a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
+            expected_dt = self._drop_micorseconds(self.date_tz_local.isoformat())
+            json_exp = {'id': str(a.pk), 'start_at': expected_dt}
+            if 'title' in model_class._fields:
+                json_exp['title'] = model_class._fields['title'].default
+            self.assertEqual(a_json, json_exp)
+            # specify timezone
+            a_json = a_from_db.to_primitive(timezone=self.eastern_tz)
+            a_json['start_at'] = self._drop_micorseconds(a_json['start_at'])
+            expected_dt = self._drop_micorseconds(self.date_tz_estn.isoformat())
+            json_exp = {'id': str(a.pk), 'start_at': expected_dt}
+            if 'title' in model_class._fields:
+                json_exp['title'] = model_class._fields['title'].default
+            self.assertEqual(a_json, json_exp)
 
     @gen_test
     def test_locale_serialize_from_aware(self):
-        input_json = {
-            'start_at': self.date_tz_estn.isoformat(),
-        }
-        a = Action(input_json)
-        self.assertDateTimeEqual(self.date_tz_estn, a.start_at)
-        a_from_db = yield self._get_action_from_db(a)
-        self.assertDateTimeEqual(self.date_tz_estn, a_from_db.start_at)
+        for model_class in self.model_classes:
+            input_json = {
+                'start_at': self.date_tz_estn.isoformat(),
+            }
+            a = model_class(input_json)
+            self.assertDateTimeEqual(self.date_tz_estn, a.start_at)
+            a_from_db = yield self._get_action_from_db(a, model_class)
+            self.assertDateTimeEqual(self.date_tz_estn, a_from_db.start_at)
 
     @gen_test
     def test_locale_serialize_from_naive(self):
-        input_json = {
-            'start_at': self.naive_now.isoformat(),
-        }
-        a = Action(input_json)
-        self.assertDateTimeEqual(self.date_tz_db, a.start_at)
-        a_from_db = yield self._get_action_from_db(a)
-        self.assertDateTimeEqual(self.date_tz_db, a_from_db.start_at)
+        for model_class in self.model_classes:
+            input_json = {
+                'start_at': self.naive_now.isoformat(),
+            }
+            a = model_class(input_json)
+            self.assertDateTimeEqual(self.date_tz_db, a.start_at)
+            a_from_db = yield self._get_action_from_db(a, model_class)
+            self.assertDateTimeEqual(self.date_tz_db, a_from_db.start_at)
 
     @gen_test
     def test_locale_default_naive(self):
-        a = ActionDefaultDate()
-        self.assertDateTimeEqual(a.start_at, self.date_tz_db, timedelta(seconds=1))
+        for model_class in [ActionDefaultDate]:
+            a = model_class()
+            self.assertDateTimeEqual(a.start_at, self.date_tz_db, timedelta(seconds=1))
 
     @gen.coroutine
-    def _get_action_from_db(self, a):
+    def _get_action_from_db(self, a, model_class):
         yield a.save(self.db)
-        a_from_db = yield Action.objects.set_db(self.db).get({"id": a.pk})
+        a_from_db = yield model_class.objects.set_db(self.db).get({"id": a.pk})
         raise gen.Return(a_from_db)
 
     def assertDateTimeEqual(self, dt1, dt2, detla=None):
