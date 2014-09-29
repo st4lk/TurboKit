@@ -3,6 +3,8 @@ import string
 import random
 import motor
 import collections
+import logging
+import logging.config
 from random import randint
 from tornado.testing import AsyncHTTPTestCase
 from tornado.ioloop import IOLoop
@@ -11,6 +13,33 @@ from example_app.app import AppODM
 from schematics import types
 from schematics.types import compound
 from example_app.models import SimpleModel, User, Event, Record, RecordSeries
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(levelname)s:%(name)s: %(message)s '
+                    '(%(asctime)s; %(filename)s:%(lineno)d)',
+            'datefmt': "%Y-%m-%d %H:%M:%S",
+        }
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console', ],
+            'level': 'INFO',
+        },
+    }
+}
+logging.config.dictConfig(LOGGING)
 
 
 class BaseTest(AsyncHTTPTestCase):

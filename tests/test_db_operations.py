@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import pymongo
 from datetime import datetime, timedelta
 from base import BaseTest
@@ -6,6 +7,8 @@ from tornado.testing import gen_test
 from tornado import gen
 from example_app import models
 from turbokit.errors import OperationError
+
+l = logging.getLogger(__name__)
 
 
 class TestDbOperations(BaseTest):
@@ -324,11 +327,21 @@ class TestReverseDeleteRulesListField(BaseTest):
     @gen.coroutine
     def _check_cascade(self, from_queryset=False):
         M = models.ParentG
+        parents_db = yield M.objects.set_db(self.db).all()
+        l.info("Parents in database before test: {0}".format(
+            map(lambda p: p.pk, parents_db)))
         if from_queryset:
-            childs1, _ = yield self._create_models(M)
-            childs2, _ = yield self._create_models(M)
+            childs1, p1 = yield self._create_models(M)
+            l.info("Saved parent1 {0}".format(p1.pk))
+            l.info("Saved childs1 {0}".format(map(lambda chd: str(chd.pk), childs1)))
+            childs2, p2 = yield self._create_models(M)
+            l.info("Saved parent2 {0}".format(p2.pk))
+            l.info("Saved childs2 {0}".format(map(lambda chd: str(chd.pk), childs2)))
             childs_exist, parent_exist = yield self._create_models(M)
+            l.info("Saved parent3 {0}".format(parent_exist.pk))
+            l.info("Saved childs3 {0}".format(map(lambda chd: str(chd.pk), childs_exist)))
             childs_to_delete = childs1[0:2] + childs2[:1]
+            l.info("childs_to_delete {0}".format(map(lambda chd: str(chd.pk), childs_to_delete)))
             yield models.ChildA.objects.set_db(self.db).remove(
                 {"id": {"$in": map(lambda x: x.pk, childs_to_delete)}})
         else:
@@ -337,6 +350,7 @@ class TestReverseDeleteRulesListField(BaseTest):
             childs_to_delete = childs1[:1]
             yield childs_to_delete[0].remove(self.db)
         parents_db = yield M.objects.set_db(self.db).all()
+        l.info("Parents in database: {0}".format(map(lambda p: p.pk, parents_db)))
         self.assertEqual(len(parents_db), 1)
         self.assertEqual(parents_db[0].pk, parent_exist.pk)
         self.assertEqual(len(parents_db[0].childs), len(childs_exist))
