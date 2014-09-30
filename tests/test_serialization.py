@@ -93,6 +93,63 @@ class TestSerializationCompound(BaseSerializationTest):
         expected_cls_json.update(updated_json_for_cls)
         self.assertEqual(json_from_db, expected_cls_json)
 
+    @gen_test
+    def test_only(self):
+        m = self.model(self.json_data)
+        yield m.save(self.db)
+        only_fields = ['type_email', 'type_string', ]
+        expected_fields = only_fields + ['id']
+
+        mdl_db = yield self.model.objects.set_db(self.db).only(*only_fields)\
+            .get({"id": m.pk})
+        self.assertEqual(set(mdl_db.to_primitive()), set(expected_fields))
+
+        mdls_db = yield self.model.objects.set_db(self.db).only(*only_fields).all()
+        self.assertEqual(set(mdls_db[0].to_primitive()), set(expected_fields))
+
+        # currently .only and .exclude must be applied before .filter, TODO
+        mdls_db = yield self.model.objects.set_db(self.db).only(*only_fields)\
+            .filter({}).all()
+        self.assertEqual(set(mdls_db[0].to_primitive()), set(expected_fields))
+
+    @gen_test
+    def test_exclude(self):
+        m = self.model(self.json_data)
+        yield m.save(self.db)
+        exclude_fields = ['type_email', ]
+
+        mdl_db = yield self.model.objects.set_db(self.db).exclude(*exclude_fields)\
+            .get({"id": m.pk})
+        self.assertEqual(set(exclude_fields) - set(mdl_db.to_primitive()),
+            set(exclude_fields))
+
+        mdls_db = yield self.model.objects.set_db(self.db)\
+            .exclude(*exclude_fields).all()
+        self.assertEqual(set(exclude_fields) - set(mdls_db[0].to_primitive()),
+            set(exclude_fields))
+
+        # currently .only and .exclude must be applied before .filter, TODO
+        mdls_db = yield self.model.objects.set_db(self.db)\
+            .exclude(*exclude_fields).filter({}).all()
+        self.assertEqual(set(exclude_fields) - set(mdls_db[0].to_primitive()),
+            set(exclude_fields))
+
+    @gen_test
+    def test_combine_only_exclude(self):
+        m = self.model(self.json_data)
+        yield m.save(self.db)
+        exclude_fields = ['type_email', ]
+        only_fields = ['type_email', 'type_string', 'type_int']
+        expected_fields = (set(only_fields) - set(exclude_fields)) | set(['id'])
+
+        mdl_db = yield self.model.objects.set_db(self.db).exclude(*exclude_fields)\
+            .only(*only_fields).get({"id": m.pk})
+        self.assertEqual(set(mdl_db.to_primitive()), expected_fields)
+
+        mdl_db = yield self.model.objects.set_db(self.db).only(*only_fields)\
+            .exclude(*exclude_fields).get({"id": m.pk})
+        self.assertEqual(set(mdl_db.to_primitive()), expected_fields)
+
 
 class TestSerializationModelReference(BaseSerializationTest):
     MODEL_CLASS = SchematicsFieldsModel

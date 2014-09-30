@@ -17,11 +17,51 @@ l = logging.getLogger(__name__)
 
 class AsyncManager(PrefetchRelatedMixin):
 
-    def __init__(self, cls, collection, db=None, **kwargs):
+    def __init__(self, cls, collection, db=None, fields=None, **kwargs):
         super(AsyncManager, self).__init__(cls, collection, db=db, **kwargs)
         self.collection = collection
         self.cls = cls
         self.db = db
+        if fields is None:
+            fields = {}
+        self.fields = fields
+
+    def exclude(self, *fields):
+        # TODO exclude also self.cls._serializables
+        # TODO respect prefeched model fields
+        _fields = self.fields.copy()
+        exclude_fields = dict(map(lambda x: (x, False), fields))
+        if not _fields:
+            _fields = exclude_fields
+        else:
+            if _fields.itervalues().next():
+                # _fields contains all True values, convert it to False
+                fields_converted = set(self.cls._fields) - set(_fields)
+                _fields = dict(map(lambda x: (x, False), fields_converted))
+                _fields.update(exclude_fields)
+                _fields.pop('_id', None)  # TODO handle id exclusion
+            else:
+                # _fields contains all False values, just update
+                _fields.update(exclude_fields)
+        return AsyncManager(self.cls, self.collection, self.db, _fields)
+
+    def only(self, *fields):
+        # TODO only also self.cls._serializables
+        # TODO respect prefeched model fields
+        _fields = self.fields.copy()
+        only_fields = dict(map(lambda x: (x, True), fields))
+        if not _fields:
+            _fields = only_fields
+        else:
+            if _fields.itervalues().next():
+                # _fields contains all True values, just update
+                _fields.update(_fields)
+            else:
+                # _fields contains all False values, convert it to True
+                for exclude_field in _fields:
+                    only_fields.pop(exclude_field, None)
+                _fields = only_fields
+        return AsyncManager(self.cls, self.collection, self.db, _fields)
 
     def set_db(self, db):
         """
@@ -34,7 +74,8 @@ class AsyncManager(PrefetchRelatedMixin):
     def get(self, query, return_raw=False):
         # TODO: add reconnects here and in other methods
         query = self.process_query(query)
-        response = yield self.db[self.collection].find_one(query)
+        params = self.get_find_extra_params()
+        response = yield self.db[self.collection].find_one(query, **params)
         if return_raw:
             result = response
         else:
@@ -131,7 +172,8 @@ class AsyncManager(PrefetchRelatedMixin):
 
     @gen.coroutine
     def all(self):
-        cursor = self.db[self.collection].find({})
+        params = self.get_find_extra_params()
+        cursor = self.db[self.collection].find({}, **params)
         results = yield AsyncManagerCursor(self.cls, cursor, self.db,
             prefetch_related=self._prefetch_related).all()
         raise gen.Return(results)
@@ -163,7 +205,8 @@ class AsyncManager(PrefetchRelatedMixin):
 
     def filter(self, query):
         query = self.process_query(query)
-        cursor = self.db[self.collection].find(query)
+        params = self.get_find_extra_params()
+        cursor = self.db[self.collection].find(query, **params)
         return AsyncManagerCursor(self.cls, cursor, self.db,
             prefetch_related=self._prefetch_related)
 
@@ -177,3 +220,9 @@ class AsyncManager(PrefetchRelatedMixin):
             else:
                 query['_id'] = _id
         return query
+
+    def get_find_extra_params(self):
+        params = {}
+        if self.fields:
+            params['fields'] = self.fields
+        return params
