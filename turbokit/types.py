@@ -270,7 +270,9 @@ class LocaleDateTimeType(DateTimeType):
         return value.astimezone(timezone).strftime(self.serialized_format)
 
     def to_mongo(self, value, context=None):
-        return self.to_native(value, context=context)
+        # drop timezone, so datetime value will not be changed during convertion
+        # to UTC in pymongo, if you specify database_timezone not UTC
+        return self.to_native(value, context=context).replace(tzinfo=None)
 
     def to_native(self, value, context=None, from_mongo=False):
         if isinstance(value, datetime):
