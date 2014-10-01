@@ -151,6 +151,7 @@ class AsyncManager(PrefetchRelatedMixin):
             for rule_entry in delete_rules:
                 parent_doc_cls, parent_field_name = rule_entry
                 rule = delete_rules[rule_entry]
+                l.debug('processing delete rule {0} for {1}'.format(rule, parent_doc_cls.__name__))
                 if rule == NULLIFY:
                     parent_doc_cls.objects.set_db(self.db).update(
                         {parent_field_name: doc.pk},

@@ -356,35 +356,52 @@ class TestReverseDeleteRulesListField(BaseTest):
     @gen.coroutine
     def _check_cascade(self, from_queryset=False):
         M = models.ParentG
+        MC = models.ChildA
+        log_pk = lambda objects_db: map(lambda p: p.pk, objects_db)
+
+        @gen.coroutine
+        def log_db():
+            p_db = yield M.objects.set_db(self.db).all()
+            l.info("Parents in db: {0}".format(log_pk(p_db)))
+            c_db = yield MC.objects.set_db(self.db).all()
+            l.info("Childs in db: {0}".format(log_pk(c_db)))
+
         parents_db = yield M.objects.set_db(self.db).all()
-        l.info("Parents in database before test: {0}".format(
-            map(lambda p: p.pk, parents_db)))
+        l.info("Parents in database before test: {0}".format(log_pk(parents_db)))
         if from_queryset:
             childs1, p1 = yield self._create_models(M)
             l.info("Saved parent1 {0}".format(p1.pk))
             l.info("Saved childs1 {0}".format(map(lambda chd: str(chd.pk), childs1)))
+            yield log_db()
             childs2, p2 = yield self._create_models(M)
             l.info("Saved parent2 {0}".format(p2.pk))
             l.info("Saved childs2 {0}".format(map(lambda chd: str(chd.pk), childs2)))
+            yield log_db()
             childs_exist, parent_exist = yield self._create_models(M)
             l.info("Saved parent3 {0}".format(parent_exist.pk))
             l.info("Saved childs3 {0}".format(map(lambda chd: str(chd.pk), childs_exist)))
+            yield log_db()
             childs_to_delete = childs1[0:2] + childs2[:1]
             l.info("childs_to_delete {0}".format(map(lambda chd: str(chd.pk), childs_to_delete)))
             yield models.ChildA.objects.set_db(self.db).remove(
                 {"id": {"$in": map(lambda x: x.pk, childs_to_delete)}})
+            yield log_db()
         else:
             childs1, p1 = yield self._create_models(M)
             l.info("Saved parent1 {0}".format(p1.pk))
             l.info("Saved childs1 {0}".format(map(lambda chd: str(chd.pk), childs1)))
+            yield log_db()
             childs_exist, parent_exist = yield self._create_models(M)
             l.info("Saved parent2 {0}".format(parent_exist.pk))
             l.info("Saved childs2 {0}".format(map(lambda chd: str(chd.pk), childs_exist)))
+            yield log_db()
             childs_to_delete = childs1[:1]
             l.info("childs_to_delete {0}".format(map(lambda chd: str(chd.pk), childs_to_delete)))
             yield childs_to_delete[0].remove(self.db)
+            yield log_db()
         parents_db = yield M.objects.set_db(self.db).all()
         l.info("Parents in database: {0}".format(map(lambda p: p.pk, parents_db)))
+        yield log_db()
         self.assertEqual(len(parents_db), 1)
         self.assertEqual(parents_db[0].pk, parent_exist.pk)
         self.assertEqual(len(parents_db[0].childs), len(childs_exist))
