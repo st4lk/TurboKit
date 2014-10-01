@@ -78,10 +78,12 @@ class AsyncManager(PrefetchRelatedMixin):
         response = yield self.db[self.collection].find_one(query, **params)
         if return_raw:
             result = response
-        else:
+        elif response:
             m = self.cls(response, from_mongo=True)
             results_with_related = yield self.fetch_related_objects([m])
             result = results_with_related[0]
+        else:
+            result = None
         raise gen.Return(result)
 
     @gen.coroutine

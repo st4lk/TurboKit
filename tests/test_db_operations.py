@@ -22,6 +22,11 @@ class TestDbOperations(BaseTest):
         self.assertEqual(m.secret, m_from_db.secret)
 
     @gen_test
+    def test_get_none(self):
+        m_from_db = yield models.SimpleModel.objects.set_db(self.db).get({"title": "Test model"})
+        self.assertTrue(m_from_db is None)
+
+    @gen_test
     def test_all(self):
         mdls = yield self._create_models(self.db)
         model_secrets = set(map(lambda x: x.secret, mdls))
