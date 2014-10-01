@@ -27,6 +27,13 @@ class TestDbOperations(BaseTest):
         self.assertTrue(m_from_db is None)
 
     @gen_test
+    def test_get_by_pk(self):
+        m = models.SimpleModel()
+        yield m.save(self.db)
+        m_from_db = yield models.SimpleModel.objects.set_db(self.db).get({"pk": m.pk})
+        self.assertEqual(m.pk, m_from_db.pk)
+
+    @gen_test
     def test_all(self):
         mdls = yield self._create_models(self.db)
         model_secrets = set(map(lambda x: x.secret, mdls))

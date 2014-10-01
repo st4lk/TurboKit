@@ -214,14 +214,16 @@ class AsyncManager(PrefetchRelatedMixin):
             prefetch_related=self._prefetch_related)
 
     def process_query(self, query):
-        if 'id' in query:
-            _id = query.pop('id')
-            if isinstance(_id, SchematicsModel):
-                _id = _id.pk
-            if not isinstance(_id, ObjectId) and not isinstance(_id, dict):
-                query['_id'] = ObjectId(_id)
-            else:
-                query['_id'] = _id
+        for pk_name in ['id', 'pk']:
+            if pk_name in query:
+                _id = query.pop(pk_name)
+                if isinstance(_id, SchematicsModel):
+                    _id = _id.pk
+                if not isinstance(_id, ObjectId) and not isinstance(_id, dict):
+                    query['_id'] = ObjectId(_id)
+                else:
+                    query['_id'] = _id
+                break
         return query
 
     def get_find_extra_params(self):
