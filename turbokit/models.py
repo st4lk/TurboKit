@@ -124,6 +124,31 @@ class SerializationMixin(object):
         """
         return convert(self.__class__, raw_data, **kw)
 
+    def import_data(self, raw_data, **kw):
+        """
+        Converts and imports the raw data into the instance of the model
+        according to the fields in the model.
+        Difference with schematics.models.Model.import_data:
+        don't delete key with `None` value, so these values will be nullified
+
+        :param raw_data:
+            The data to be imported.
+        """
+        data = self.convert(raw_data, **kw)
+        for k in data.keys():
+            if data[k] is None and k not in raw_data:
+                del data[k]
+        self._data.update(data)
+        return self
+
+    def partial_import_data(self, raw_data, **kw):
+        data = self.convert(raw_data, **kw)
+        for k in data.keys():
+            if k not in raw_data or (data[k] is None and k not in raw_data):
+                del data[k]
+        self._data.update(data)
+        return self
+
     @classmethod
     def get_database_timezone(cls):
         return pytz.utc

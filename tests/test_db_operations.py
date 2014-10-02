@@ -7,6 +7,8 @@ from tornado.testing import gen_test
 from tornado import gen
 from example_app import models
 from turbokit.errors import OperationError
+from turbokit.models import BaseModel
+from schematics import types
 
 l = logging.getLogger(__name__)
 
@@ -136,6 +138,23 @@ class TestDbOperations(BaseTest):
             self.assertEqual(m.secret, m_db.secret)
         for m_id, m_db in zip(sorted(m_ids), sorted(mdls_from_db, key=lambda d: d.pk)):
             self.assertEqual(m_id, m_db.pk)
+
+    @gen_test
+    def test_import_data(self):
+        class M(BaseModel):
+            title = types.StringType(default='No name')
+            secret = types.StringType()
+
+            class Options:
+                serialize_when_none = False
+
+        m = M(dict(title='t1', secret='s1'))
+        yield m.save(self.db)
+        m.partial_import_data(dict(secret=None))
+        self.assertEqual(m.to_mongo(), dict(title='t1', _id=m.pk))
+        m.import_data(dict(secret=None))
+        # import_data also resets not provided values to their defautls
+        self.assertEqual(m.to_mongo(), dict(title='No name', _id=m.pk))
 
     @gen.coroutine
     def _create_models(self, db, count=5):
