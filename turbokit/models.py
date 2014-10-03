@@ -82,8 +82,7 @@ class ModelMeta(BaseModelMeta):
     @classmethod
     def add_persistence_layer(cls, attrs, name, new_class):
         super(ModelMeta, cls).add_persistence_layer(attrs, name, new_class)
-        if not attrs['_options'].namespace:
-            attrs['_options'].namespace = name.replace("Model", "").lower()
+        attrs['_options'].namespace = name.replace("Model", "").lower()
         cls.set_delete_rules(attrs, new_class)
         setattr(new_class, "objects", AsyncManager(new_class, attrs['_options'].namespace))
 
