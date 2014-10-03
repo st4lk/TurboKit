@@ -19,6 +19,7 @@ from .transforms import to_mongo, to_primitive, convert
 from .types import ObjectIdType, ModelReferenceType, DO_NOTHING
 from .managers import AsyncManager
 from .signals import pre_save, post_save
+from .errors import NoDBSpecified
 
 l = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -235,12 +236,14 @@ class BaseModel(SerializationMixin, SchematicsModel):
         yield pre_save.send(self.__class__, document=self)
         self.validate()
         db = db or self.db
+        if not db:
+            raise NoDBSpecified
         c = self.check_collection(collection)
         data = self.get_data_for_save(ser)
         result = None
         for i in self.reconnect_amount():
             try:
-                result = yield motor.Op(db[c].save, data)
+                result = yield db[c].save(data)
             except ConnectionFailure as e:
                 exceed = yield self.check_reconnect_tries_and_wait(i, 'save')
                 if exceed:
@@ -249,7 +252,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
                 if result:
                     self._id = result
                 yield post_save.send(self.__class__, document=self)
-                raise gen.Return(self)
+                raise gen.Return(self)  # `save` always should return saved instance, not None
 
     @gen.coroutine
     def insert(self, db=None, collection=None, ser=None, **kwargs):

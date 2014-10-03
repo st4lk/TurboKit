@@ -7,3 +7,7 @@ class NotRegistered(Exception):
 
 class OperationError(Exception):
     pass
+
+
+class NoDBSpecified(Exception):
+    pass

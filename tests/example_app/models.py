@@ -22,6 +22,10 @@ class SimpleModel(BaseModel):
         return self.title
 
 
+class SimpleSubModel(SimpleModel):
+    extra = compound.DictType(types.StringType)
+
+
 class User(BaseModel):
     name = types.StringType()
     age = types.IntType()
