@@ -24,6 +24,14 @@ class TestDbOperations(BaseTest):
         self.assertEqual(m.secret, m_from_db.secret)
 
     @gen_test
+    def test_save_one_line(self):
+        M = models.SimpleModel
+        m = yield M({"title": "Test model"}).save(self.db)
+        self.assertTrue(m.pk)
+        m_db = yield M.objects.set_db(self.db).get({'pk': m.pk})
+        self.assertEqual(m.title, m_db.title)
+
+    @gen_test
     def test_get_none(self):
         m_from_db = yield models.SimpleModel.objects.set_db(self.db).get({"title": "Test model"})
         self.assertTrue(m_from_db is None)

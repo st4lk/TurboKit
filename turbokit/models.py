@@ -249,7 +249,7 @@ class BaseModel(SerializationMixin, SchematicsModel):
                 if result:
                     self._id = result
                 yield post_save.send(self.__class__, document=self)
-                return
+                raise gen.Return(self)
 
     @gen.coroutine
     def insert(self, db=None, collection=None, ser=None, **kwargs):
