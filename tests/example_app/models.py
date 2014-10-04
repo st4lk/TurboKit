@@ -25,6 +25,9 @@ class SimpleModel(BaseModel):
 class SimpleSubModel(SimpleModel):
     extra = compound.DictType(types.StringType)
 
+    class Options:
+        namespace = 'simple_sub'
+
 
 class User(BaseModel):
     name = types.StringType()

@@ -78,12 +78,16 @@ class ModelMeta(BaseModelMeta):
         its extended version as elegant as possible.
         """
         attrs['__optionsclass__'] = attrs.get('__optionsclass__', ExtendedModelOptions)
-        return super(BaseModelMeta, mcs)._read_options(name, bases, attrs)
+        options = super(BaseModelMeta, mcs)._read_options(name, bases, attrs)
+        # necessery to avoid namespace inheritance
+        options.namespace = getattr(attrs.get('Options', None), 'namespace', None)
+        return options
 
     @classmethod
     def add_persistence_layer(cls, attrs, name, new_class):
         super(ModelMeta, cls).add_persistence_layer(attrs, name, new_class)
-        attrs['_options'].namespace = name.replace("Model", "").lower()
+        if not attrs['_options'].namespace:
+            attrs['_options'].namespace = name.replace("Model", "").lower()
         cls.set_delete_rules(attrs, new_class)
         setattr(new_class, "objects", AsyncManager(new_class, attrs['_options'].namespace))
 

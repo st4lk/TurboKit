@@ -9,7 +9,7 @@ class TestMeta(BaseTest):
 	@gen_test
 	def test_model_namespace_inheritance_with_options(self):
 		self.assertEqual(SimpleModel._options.namespace, 'simple')
-		self.assertEqual(SimpleSubModel._options.namespace, 'simplesub')
+		self.assertEqual(SimpleSubModel._options.namespace, 'simple_sub')
 
 		sm = SimpleModel({
 			'title': 'Something',
