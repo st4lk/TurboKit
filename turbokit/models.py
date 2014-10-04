@@ -62,12 +62,12 @@ class BaseModelMeta(SchematicsModelMeta):
             cls_key = ".".join((new_class.__module__, new_class.__name__))
             _document_registry[cls_key] = new_class  # TODO: move to connection
             new_class._cls_key = cls_key
-            cls.add_persistence_layer(attrs, name, new_class)
+            cls.add_persistence_layer(name, attrs, new_class)
             return new_class
         return super_new(cls, name, bases, attrs)
 
     @classmethod
-    def add_persistence_layer(cls, attrs, name, new_class):
+    def add_persistence_layer(cls, name, attrs, new_class):
         pass
 
 
@@ -84,8 +84,8 @@ class ModelMeta(BaseModelMeta):
         return options
 
     @classmethod
-    def add_persistence_layer(cls, attrs, name, new_class):
-        super(ModelMeta, cls).add_persistence_layer(attrs, name, new_class)
+    def add_persistence_layer(cls, name, attrs, new_class):
+        super(ModelMeta, cls).add_persistence_layer(name, attrs, new_class)
         if not attrs['_options'].namespace:
             attrs['_options'].namespace = name.replace("Model", "").lower()
         cls.set_delete_rules(attrs, new_class)
